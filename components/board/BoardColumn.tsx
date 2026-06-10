@@ -19,11 +19,11 @@ const HEADER_COLOR_MAP: Record<string, string> = {
   yellow: 'text-[#2d1200]',
 }
 
-const DOT_COLOR_MAP: Record<string, string> = {
-  green:  'bg-green-400',
-  red:    'bg-red-400',
-  blue:   'bg-blue-400',
-  yellow: 'bg-yellow-400',
+const DOT_IMG_MAP: Record<string, string> = {
+  green:  '/assets/green.png',
+  red:    '/assets/red.png',
+  blue:   '/assets/yellow.png',
+  yellow: '/assets/yellow.png',
 }
 
 interface BoardColumnProps {
@@ -54,13 +54,13 @@ export default function BoardColumn({
 
   const borderClass = BORDER_COLOR_MAP[column.color] ?? BORDER_COLOR_MAP.blue
   const headerClass = HEADER_COLOR_MAP[column.color] ?? 'text-blue-400'
-  const dotClass = DOT_COLOR_MAP[column.color] ?? 'bg-blue-400'
+  const dotImg = DOT_IMG_MAP[column.color] ?? '/assets/yellow.png'
 
   return (
     <div className={`flex flex-col min-w-0 rounded-2xl p-4 border border-white/40 bg-white/20 shadow-[0_4px_24px_rgba(45,18,0,0.10),0_1px_4px_rgba(45,18,0,0.06)]`} style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
-        <div className={`w-2 h-2 rounded-full ${dotClass}`} />
+        <img src={dotImg} width={24} height={24} alt="" />
         <h3 className={`font-semibold text-base ${headerClass}`}>{column.label}</h3>
         <span className="ml-auto text-xs text-[#2d1200]/60 font-medium">{colCards.length}</span>
       </div>

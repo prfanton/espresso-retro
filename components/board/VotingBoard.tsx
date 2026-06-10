@@ -8,8 +8,8 @@ import type { RetroFormat, Card, CardGroup } from '@/types/retro'
 
 const MAX_VOTES = 3
 
-const DOT_COLOR_MAP: Record<string, string> = {
-  green: 'bg-green-400', red: 'bg-red-400', blue: 'bg-blue-400', yellow: 'bg-yellow-400',
+const DOT_IMG_MAP: Record<string, string> = {
+  green: '/assets/green.png', red: '/assets/red.png', blue: '/assets/yellow.png', yellow: '/assets/yellow.png',
 }
 
 interface VotingBoardProps {
@@ -169,7 +169,7 @@ function VotingColumn({ columnId, columnLabel, columnColor, sessionId, userKey, 
     [sessionCards]
   )
 
-  const dotClass = DOT_COLOR_MAP[columnColor] ?? 'bg-blue-400'
+  const dotImg = DOT_IMG_MAP[columnColor] ?? '/assets/yellow.png'
   const totalItems = groups.length + ungroupedCards.length
 
   return (
@@ -178,7 +178,7 @@ function VotingColumn({ columnId, columnLabel, columnColor, sessionId, userKey, 
       style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
     >
       <div className="flex items-center gap-2 mb-4">
-        <div className={`w-2 h-2 rounded-full ${dotClass}`} />
+        <img src={dotImg} width={24} height={24} alt="" />
         <h3 className="font-semibold text-base text-[#2d1200]">{columnLabel}</h3>
         <span className="ml-auto text-xs text-[#2d1200]/60 font-medium">{totalItems}</span>
       </div>
