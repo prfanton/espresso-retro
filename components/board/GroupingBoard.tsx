@@ -247,8 +247,8 @@ function GroupContainer({ group, cards, columnId, onRename, onDissolve, onRemove
 
 // ─── Droppable column ─────────────────────────────────────────────────────────
 
-const DOT_COLOR_MAP: Record<string, string> = {
-  green: 'bg-green-400', red: 'bg-red-400', blue: 'bg-blue-400', yellow: 'bg-yellow-400',
+const DOT_IMG_MAP: Record<string, string> = {
+  green: '/assets/green.png', red: '/assets/red.png', blue: '/assets/yellow.png', yellow: '/assets/yellow.png',
 }
 
 function GroupingColumn({
@@ -276,7 +276,7 @@ function GroupingColumn({
   })
 
   const totalCards = ungroupedCards.length + groups.reduce((s, g) => s + (groupedCards[g.id]?.length ?? 0), 0)
-  const dotClass = DOT_COLOR_MAP[columnColor] ?? 'bg-blue-400'
+  const dotImg = DOT_IMG_MAP[columnColor] ?? '/assets/yellow.png'
 
   // items for ungrouped SortableContext: cards + group containers
   const ungroupedItems = ungroupedCards.map((c) => c.id)
@@ -292,7 +292,7 @@ function GroupingColumn({
       style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
     >
       <div className="flex items-center gap-2 mb-4">
-        <div className={`w-2 h-2 rounded-full ${dotClass}`} />
+        <img src={dotImg} width={24} height={24} alt="" />
         <h3 className="font-semibold text-base text-[#2d1200]">{columnLabel}</h3>
         <span className="ml-auto text-xs text-[#2d1200]/60 font-medium">{totalCards}</span>
       </div>

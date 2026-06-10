@@ -175,13 +175,13 @@ export default function ResultsView({ format, sessionId, userKey, onExport }: Re
   const activeId = selectedId ?? sidebarItems[0]?.id ?? null
   const activeItem = sidebarItems.find((i) => i.id === activeId) ?? null
 
-  const DOT_COLOR_MAP: Record<string, string> = {
-    green: 'bg-green-400', red: 'bg-red-400', blue: 'bg-blue-400', yellow: 'bg-yellow-400',
+  const DOT_IMG_MAP: Record<string, string> = {
+    green: '/assets/green.png', red: '/assets/red.png', blue: '/assets/yellow.png', yellow: '/assets/yellow.png',
   }
 
-  function columnDotClass(columnId: string) {
+  function columnDotImg(columnId: string) {
     const col = format.columns.find((c) => c.id === columnId)
-    return col ? (DOT_COLOR_MAP[col.color] ?? 'bg-blue-400') : 'bg-blue-400'
+    return col ? (DOT_IMG_MAP[col.color] ?? '/assets/yellow.png') : '/assets/yellow.png'
   }
 
   function columnLabel(columnId: string) {
@@ -195,7 +195,7 @@ export default function ResultsView({ format, sessionId, userKey, onExport }: Re
         {sidebarItems.map((item) => {
           const isActive = item.id === activeId
           if (item.kind === 'group') {
-            const dotClass = item.cards[0] ? columnDotClass(item.cards[0].column_id) : 'bg-blue-400'
+            const dotImg = item.cards[0] ? columnDotImg(item.cards[0].column_id) : '/assets/yellow.png'
             return (
               <button
                 key={item.id}
@@ -205,7 +205,7 @@ export default function ResultsView({ format, sessionId, userKey, onExport }: Re
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotClass}`} />
+                  <img src={dotImg} width={24} height={24} alt="" className="shrink-0" />
                   <span className="flex-1 text-xs font-semibold text-[#2d1200] truncate">{item.name}</span>
                   {item.totalVotes > 0 && (
                     <span className="text-xs text-[#B83C28] font-semibold shrink-0">▲{item.totalVotes}</span>
@@ -216,7 +216,6 @@ export default function ResultsView({ format, sessionId, userKey, onExport }: Re
             )
           }
           // Ungrouped card
-          const dotClass = columnDotClass(item.card.column_id)
           return (
             <button
               key={item.id}
@@ -268,7 +267,7 @@ export default function ResultsView({ format, sessionId, userKey, onExport }: Re
                 <div className="flex items-center gap-1.5 ml-2">
                   {activeItem.cards[0] && (
                     <>
-                      <div className={`w-1.5 h-1.5 rounded-full ${columnDotClass(activeItem.cards[0].column_id)}`} />
+                      <img src={columnDotImg(activeItem.cards[0].column_id)} width={24} height={24} alt="" />
                       <span className="text-xs text-[#2d1200]/50">{columnLabel(activeItem.cards[0].column_id)}</span>
                     </>
                   )}
@@ -287,7 +286,7 @@ export default function ResultsView({ format, sessionId, userKey, onExport }: Re
             <div>
               {/* Ungrouped card header */}
               <div className="flex items-center gap-2 mb-6">
-                <div className={`w-1.5 h-1.5 rounded-full ${columnDotClass(activeItem.card.column_id)}`} />
+                <img src={columnDotImg(activeItem.card.column_id)} width={24} height={24} alt="" />
                 <span className="text-xs text-[#2d1200]/50">{columnLabel(activeItem.card.column_id)}</span>
                 {activeItem.voteCount > 0 && (
                   <span className="ml-auto text-sm font-semibold text-[#B83C28]">▲ {activeItem.voteCount} votes</span>

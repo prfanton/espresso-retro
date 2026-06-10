@@ -89,6 +89,7 @@ export default function AddCardButton({
           onSave={handleSave}
           onCancel={handleCancel}
           onTyping={() => onBroadcastTyping('new')}
+          hideButtons
         />
         <div className="flex gap-2 mt-2 pt-2 border-t border-[#2d1200]/8">
           <button
