@@ -291,8 +291,11 @@ export default function ResultsView({ format, sessionId, userKey, isFacilitator,
                     <span className="text-sm font-semibold text-[#B83C28]">▲ {activeItem.totalVotes} votes</span>
                   )}
                   {nextItem && (
-                    <button onClick={() => setSelectedId(nextItem.id)} className="text-xs text-[#2d1200]/50 hover:text-[#B83C28] transition-colors whitespace-nowrap">
-                      next card →
+                    <button onClick={() => setSelectedId(nextItem.id)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#2d1200]/8 text-[#2d1200]/70 hover:bg-[#B83C28] hover:text-white transition-colors whitespace-nowrap">
+                      Next
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
                     </button>
                   )}
                 </div>
@@ -314,8 +317,11 @@ export default function ResultsView({ format, sessionId, userKey, isFacilitator,
                     <span className="text-sm font-semibold text-[#B83C28]">▲ {activeItem.voteCount} votes</span>
                   )}
                   {nextItem && (
-                    <button onClick={() => setSelectedId(nextItem.id)} className="text-xs text-[#2d1200]/50 hover:text-[#B83C28] transition-colors whitespace-nowrap">
-                      next card →
+                    <button onClick={() => setSelectedId(nextItem.id)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#2d1200]/8 text-[#2d1200]/70 hover:bg-[#B83C28] hover:text-white transition-colors whitespace-nowrap">
+                      Next
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
                     </button>
                   )}
                 </div>
