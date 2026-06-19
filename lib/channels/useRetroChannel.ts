@@ -10,6 +10,7 @@ interface UseRetroChannelOptions {
   sessionId: string
   userKey: string
   displayName: string
+  onPresenceSync?: () => void
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -21,7 +22,7 @@ export interface TimerState {
   ts: number
 }
 
-export function useRetroChannel({ sessionId, userKey, displayName }: UseRetroChannelOptions) {
+export function useRetroChannel({ sessionId, userKey, displayName, onPresenceSync }: UseRetroChannelOptions) {
   const channelRef = useRef<ReturnType<ReturnType<typeof getSupabaseClient>['channel']> | null>(null)
   const {
     setSession, setCards, setVotes, setGroups, setReactions, setLoaded,
@@ -144,6 +145,7 @@ export function useRetroChannel({ sessionId, userKey, displayName }: UseRetroCha
       const state = channel.presenceState() as Record<string, PresenceUser[]>
       const participants = Object.values(state).flat()
       setParticipants(participants)
+      onPresenceSync?.()
     })
 
     // Broadcast: typing indicator

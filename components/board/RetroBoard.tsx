@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { getUserKey, getDisplayName, setDisplayName } from '@/lib/utils/userKey'
 import { getFormat } from '@/lib/utils/sessionFormats'
 import { getPhaseCapabilities, getNextPhase, getPrevPhase, getPhaseDbPatch } from '@/lib/utils/phaseUtils'
@@ -66,6 +66,7 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
   const [displayName, setDisplayNameState] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
   const [showFinishModal, setShowFinishModal] = useState(false)
+  const lastTimerStateRef = useRef<{ totalSeconds: number; running: boolean } | null>(null)
 
   const boardSession = useBoardStore((s) => s.session)
   const setSession = useBoardStore((s) => s.setSession)
@@ -96,11 +97,28 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
     participantMap[p.user_key] = p.display_name
   }
 
+  const handlePresenceSync = useCallback(() => {
+    if (isFacilitator && lastTimerStateRef.current) {
+      broadcastTimerSyncRef.current?.(lastTimerStateRef.current.totalSeconds, lastTimerStateRef.current.running)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFacilitator])
+
+  const broadcastTimerSyncRef = useRef<((totalSeconds: number, running: boolean) => void) | null>(null)
+
   const { broadcastTyping, broadcastTimerSync, broadcastResultsNavigate, timerState, resultsNavigatedId } = useRetroChannel({
     sessionId: session.id,
     userKey,
     displayName: displayName ?? '',
+    onPresenceSync: handlePresenceSync,
   })
+
+  broadcastTimerSyncRef.current = broadcastTimerSync
+
+  function handleTimerSync(totalSeconds: number, running: boolean) {
+    lastTimerStateRef.current = { totalSeconds, running }
+    broadcastTimerSync(totalSeconds, running)
+  }
 
   async function handleJoin(name: string) {
     setDisplayName(session.id, name)
@@ -160,7 +178,7 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
           <div className="flex items-center gap-3 flex-wrap">
             <PresenceBar />
             {isFacilitator
-              ? <FacilitatorControls onTimerSync={broadcastTimerSync} />
+              ? <FacilitatorControls onTimerSync={handleTimerSync} />
               : timerState && <TimerDisplay timerState={timerState} />
             }
             <InviteLinkButton />
