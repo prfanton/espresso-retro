@@ -103,11 +103,11 @@ function ReactionBar({ cardId, userKey }: { cardId: string; userKey: string }) {
 
 // ─── Center panel card ────────────────────────────────────────────────────────
 
-function CenterCard({ card, userKey, voteCount }: { card: Card; userKey: string; voteCount: number }) {
+function CenterCard({ card, userKey, voteCount, showVotes = true, dotImg }: { card: Card; userKey: string; voteCount: number; showVotes?: boolean; dotImg?: string }) {
   return (
     <div className="py-4 border-b border-[#2d1200]/8 last:border-0">
       <div className="flex items-start gap-3">
-        {voteCount > 0 && (
+        {showVotes && voteCount > 0 && (
           <div className="shrink-0 mt-0.5 flex items-center gap-1 text-[#B83C28] text-xs font-semibold">
             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
               <path d="M5 15l7-7 7 7" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" fill="none" />
@@ -115,6 +115,7 @@ function CenterCard({ card, userKey, voteCount }: { card: Card; userKey: string;
             {voteCount}
           </div>
         )}
+        {dotImg && <img src={dotImg} width={18} height={18} alt="" className="shrink-0 mt-0.5" />}
         <div className="flex-1">
           <p className="text-sm text-[#2d1200] leading-relaxed whitespace-pre-wrap break-words">{card.content}</p>
           <ReactionBar cardId={card.id} userKey={userKey} />
@@ -173,7 +174,9 @@ export default function ResultsView({ format, sessionId, userKey, onExport }: Re
 
   // Auto-select first item
   const activeId = selectedId ?? sidebarItems[0]?.id ?? null
-  const activeItem = sidebarItems.find((i) => i.id === activeId) ?? null
+  const activeIndex = sidebarItems.findIndex((i) => i.id === activeId)
+  const activeItem = sidebarItems[activeIndex] ?? null
+  const nextItem = activeIndex >= 0 ? sidebarItems[activeIndex + 1] ?? null : null
 
   const DOT_IMG_MAP: Record<string, string> = {
     green: '/assets/green.png', red: '/assets/red.png', blue: '/assets/yellow.png', yellow: '/assets/yellow.png',
@@ -272,13 +275,20 @@ export default function ResultsView({ format, sessionId, userKey, onExport }: Re
                     </>
                   )}
                 </div>
-                {activeItem.totalVotes > 0 && (
-                  <span className="ml-auto text-sm font-semibold text-[#B83C28]">▲ {activeItem.totalVotes} votes</span>
-                )}
+                <div className="ml-auto flex items-center gap-2">
+                  {activeItem.totalVotes > 0 && (
+                    <span className="text-sm font-semibold text-[#B83C28]">▲ {activeItem.totalVotes} votes</span>
+                  )}
+                  {nextItem && (
+                    <button onClick={() => setSelectedId(nextItem.id)} className="text-xs text-[#2d1200]/50 hover:text-[#B83C28] transition-colors whitespace-nowrap">
+                      next card →
+                    </button>
+                  )}
+                </div>
               </div>
               <div>
                 {activeItem.cards.map((card) => (
-                  <CenterCard key={card.id} card={card} userKey={userKey} voteCount={votes[card.id]?.length ?? 0} />
+                  <CenterCard key={card.id} card={card} userKey={userKey} voteCount={votes[card.id]?.length ?? 0} showVotes={false} dotImg={columnDotImg(card.column_id)} />
                 ))}
               </div>
             </div>
@@ -288,9 +298,16 @@ export default function ResultsView({ format, sessionId, userKey, onExport }: Re
               <div className="flex items-center gap-2 mb-6">
                 <img src={columnDotImg(activeItem.card.column_id)} width={24} height={24} alt="" />
                 <span className="text-xs text-[#2d1200]/50">{columnLabel(activeItem.card.column_id)}</span>
-                {activeItem.voteCount > 0 && (
-                  <span className="ml-auto text-sm font-semibold text-[#B83C28]">▲ {activeItem.voteCount} votes</span>
-                )}
+                <div className="ml-auto flex items-center gap-2">
+                  {activeItem.voteCount > 0 && (
+                    <span className="text-sm font-semibold text-[#B83C28]">▲ {activeItem.voteCount} votes</span>
+                  )}
+                  {nextItem && (
+                    <button onClick={() => setSelectedId(nextItem.id)} className="text-xs text-[#2d1200]/50 hover:text-[#B83C28] transition-colors whitespace-nowrap">
+                      next card →
+                    </button>
+                  )}
+                </div>
               </div>
               <CenterCard card={activeItem.card} userKey={userKey} voteCount={activeItem.voteCount} />
             </div>
