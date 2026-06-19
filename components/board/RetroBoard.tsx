@@ -15,7 +15,7 @@ import ResultsView from './ResultsView'
 import WorkflowBreadcrumb, { STEPS, ORDER } from './WorkflowBreadcrumb'
 import JoinModal from '@/components/session/JoinModal'
 import InviteLinkButton from '@/components/session/InviteLinkButton'
-import FacilitatorControls from '@/components/session/FacilitatorControls'
+import FacilitatorControls, { TimerDisplay } from '@/components/session/FacilitatorControls'
 import PresenceBar from '@/components/presence/PresenceBar'
 import type { Session } from '@/types/retro'
 
@@ -96,7 +96,7 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
     participantMap[p.user_key] = p.display_name
   }
 
-  const { broadcastTyping } = useRetroChannel({
+  const { broadcastTyping, broadcastTimerSync, broadcastResultsNavigate, timerState, resultsNavigatedId } = useRetroChannel({
     sessionId: session.id,
     userKey,
     displayName: displayName ?? '',
@@ -159,7 +159,10 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
 
           <div className="flex items-center gap-3 flex-wrap">
             <PresenceBar />
-            {isFacilitator && <FacilitatorControls />}
+            {isFacilitator
+              ? <FacilitatorControls onTimerSync={broadcastTimerSync} />
+              : timerState && <TimerDisplay timerState={timerState} />
+            }
             <InviteLinkButton />
           </div>
         </div>
@@ -227,12 +230,15 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
               format={format}
               sessionId={session.id}
               userKey={userKey}
+              isFacilitator={isFacilitator}
+              externalSelectedId={resultsNavigatedId}
+              onNavigate={broadcastResultsNavigate}
               onExport={handleExport}
             />
           ) : phase === 'grouping' ? (
             <GroupingBoard format={format} sessionId={session.id} />
           ) : phase === 'voting' ? (
-            <VotingBoard format={format} sessionId={session.id} userKey={userKey} />
+            <VotingBoard format={format} sessionId={session.id} userKey={userKey} isFacilitator={isFacilitator} />
           ) : (
             <div className="grid gap-4 md:grid-cols-3">
               {format.columns.map((col) => (

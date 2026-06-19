@@ -11,6 +11,9 @@ interface ResultsViewProps {
   format: RetroFormat
   sessionId: string
   userKey: string
+  isFacilitator: boolean
+  externalSelectedId?: string | null
+  onNavigate?: (itemId: string) => void
   onExport: () => void
 }
 
@@ -131,12 +134,20 @@ type SidebarItem =
   | { kind: 'group'; id: string; name: string; totalVotes: number; cards: Card[] }
   | { kind: 'card'; id: string; card: Card; voteCount: number }
 
-export default function ResultsView({ format, sessionId, userKey, onExport }: ResultsViewProps) {
+export default function ResultsView({ format, sessionId, userKey, isFacilitator, externalSelectedId, onNavigate, onExport }: ResultsViewProps) {
   const allCards = useBoardStore((s) => s.cards)
   const allGroups = useBoardStore((s) => s.groups)
   const votes = useBoardStore((s) => s.votes)
 
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [localSelectedId, setLocalSelectedId] = useState<string | null>(null)
+
+  // Participants follow the facilitator's selection; facilitator drives their own
+  const selectedId = isFacilitator ? localSelectedId : (externalSelectedId ?? localSelectedId)
+
+  function setSelectedId(id: string) {
+    setLocalSelectedId(id)
+    if (isFacilitator) onNavigate?.(id)
+  }
 
   const sessionCards = useMemo(
     () => Object.values(allCards).filter((c) => c.session_id === sessionId),

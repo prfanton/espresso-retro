@@ -2,8 +2,50 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useBoardStore } from '@/store/boardStore'
+import type { TimerState } from '@/lib/channels/useRetroChannel'
 
-export default function FacilitatorControls() {
+// ─── Read-only timer for participants ─────────────────────────────────────────
+
+export function TimerDisplay({ timerState }: { timerState: TimerState }) {
+  const [display, setDisplay] = useState(timerState.totalSeconds)
+
+  useEffect(() => {
+    if (!timerState.running) {
+      setDisplay(timerState.totalSeconds)
+      return
+    }
+    function tick() {
+      const elapsed = Math.floor((Date.now() - timerState.ts) / 1000)
+      setDisplay(Math.max(0, timerState.totalSeconds - elapsed))
+    }
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [timerState])
+
+  const mins = Math.floor(display / 60)
+  const secs = display % 60
+  const isUrgent = display <= 60 && display > 0
+
+  return (
+    <div className="flex items-center gap-2 bg-white/40 backdrop-blur-sm border border-[#2d1200]/20 rounded-xl px-3 py-1.5">
+      <svg className="w-4 h-4 text-[#2d1200]/50 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <span className={`text-base font-sans font-semibold w-14 text-center ${isUrgent ? 'text-[#B83C28] animate-pulse' : 'text-[#2d1200]'}`}>
+        {String(mins).padStart(2, '0')}:{String(secs).padStart(2, '0')}
+      </span>
+    </div>
+  )
+}
+
+// ─── Facilitator timer controls ───────────────────────────────────────────────
+
+interface FacilitatorControlsProps {
+  onTimerSync?: (totalSeconds: number, running: boolean) => void
+}
+
+export default function FacilitatorControls({ onTimerSync }: FacilitatorControlsProps) {
   const session = useBoardStore((s) => s.session)
 
   const DEFAULT_MINUTES = 5
@@ -26,12 +68,23 @@ export default function FacilitatorControls() {
   }, [running])
 
   function adjustMinutes(delta: number) {
-    setTotalSeconds((s) => Math.max(60, s + delta * 60))
+    const newVal = Math.max(60, totalSeconds + delta * 60)
+    setTotalSeconds(newVal)
+    onTimerSync?.(newVal, running)
   }
 
   function resetTimer() {
     setRunning(false)
     setTotalSeconds(DEFAULT_MINUTES * 60)
+    onTimerSync?.(DEFAULT_MINUTES * 60, false)
+  }
+
+  function handleToggle() {
+    if (totalSeconds > 0) {
+      const newRunning = !running
+      setRunning(newRunning)
+      onTimerSync?.(totalSeconds, newRunning)
+    }
   }
 
   const mins = Math.floor(totalSeconds / 60)
@@ -49,7 +102,7 @@ export default function FacilitatorControls() {
       >−</button>
 
       <button
-        onClick={() => { if (totalSeconds > 0) setRunning((r) => !r) }}
+        onClick={handleToggle}
         className={`text-base font-sans font-semibold w-14 text-center transition-colors ${
           isUrgent ? 'text-[#B83C28] animate-pulse' : 'text-[#2d1200]'
         }`}
@@ -65,7 +118,7 @@ export default function FacilitatorControls() {
       >+</button>
 
       <button
-        onClick={() => { if (totalSeconds > 0) setRunning((r) => !r) }}
+        onClick={handleToggle}
         className="w-8 h-8 flex items-center justify-center text-[#B83C28] hover:text-[#8a2a1a] hover:bg-[#B83C28]/10 rounded-lg transition-colors"
         title={running ? 'Pause' : 'Start'}
       >
