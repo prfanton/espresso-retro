@@ -11,6 +11,9 @@ interface ResultsViewProps {
   format: RetroFormat
   sessionId: string
   userKey: string
+  isFacilitator: boolean
+  externalSelectedId?: string | null
+  onNavigate?: (itemId: string) => void
   onExport: () => void
 }
 
@@ -131,12 +134,20 @@ type SidebarItem =
   | { kind: 'group'; id: string; name: string; totalVotes: number; cards: Card[] }
   | { kind: 'card'; id: string; card: Card; voteCount: number }
 
-export default function ResultsView({ format, sessionId, userKey, onExport }: ResultsViewProps) {
+export default function ResultsView({ format, sessionId, userKey, isFacilitator, externalSelectedId, onNavigate, onExport }: ResultsViewProps) {
   const allCards = useBoardStore((s) => s.cards)
   const allGroups = useBoardStore((s) => s.groups)
   const votes = useBoardStore((s) => s.votes)
 
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [localSelectedId, setLocalSelectedId] = useState<string | null>(null)
+
+  // Participants follow the facilitator's selection; facilitator drives their own
+  const selectedId = isFacilitator ? localSelectedId : (externalSelectedId ?? localSelectedId)
+
+  function setSelectedId(id: string) {
+    setLocalSelectedId(id)
+    if (isFacilitator) onNavigate?.(id)
+  }
 
   const sessionCards = useMemo(
     () => Object.values(allCards).filter((c) => c.session_id === sessionId),
@@ -280,8 +291,11 @@ export default function ResultsView({ format, sessionId, userKey, onExport }: Re
                     <span className="text-sm font-semibold text-[#B83C28]">▲ {activeItem.totalVotes} votes</span>
                   )}
                   {nextItem && (
-                    <button onClick={() => setSelectedId(nextItem.id)} className="text-xs text-[#2d1200]/50 hover:text-[#B83C28] transition-colors whitespace-nowrap">
-                      next card →
+                    <button onClick={() => setSelectedId(nextItem.id)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#2d1200]/8 text-[#2d1200]/70 hover:bg-[#B83C28] hover:text-white transition-colors whitespace-nowrap">
+                      Next
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
                     </button>
                   )}
                 </div>
@@ -303,8 +317,11 @@ export default function ResultsView({ format, sessionId, userKey, onExport }: Re
                     <span className="text-sm font-semibold text-[#B83C28]">▲ {activeItem.voteCount} votes</span>
                   )}
                   {nextItem && (
-                    <button onClick={() => setSelectedId(nextItem.id)} className="text-xs text-[#2d1200]/50 hover:text-[#B83C28] transition-colors whitespace-nowrap">
-                      next card →
+                    <button onClick={() => setSelectedId(nextItem.id)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#2d1200]/8 text-[#2d1200]/70 hover:bg-[#B83C28] hover:text-white transition-colors whitespace-nowrap">
+                      Next
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
                     </button>
                   )}
                 </div>

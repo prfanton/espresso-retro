@@ -6,7 +6,8 @@ import { useBoardStore } from '@/store/boardStore'
 import { usePresenceStore } from '@/store/presenceStore'
 import type { RetroFormat, Card, CardGroup } from '@/types/retro'
 
-const MAX_VOTES = 3
+const MIN_VOTES = 3
+const MAX_VOTES_LIMIT = 7
 
 const DOT_IMG_MAP: Record<string, string> = {
   green: '/assets/green.png', red: '/assets/red.png', blue: '/assets/yellow.png', yellow: '/assets/yellow.png',
@@ -16,6 +17,7 @@ interface VotingBoardProps {
   format: RetroFormat
   sessionId: string
   userKey: string
+  isFacilitator?: boolean
 }
 
 // ─── Vote button ──────────────────────────────────────────────────────────────
@@ -42,6 +44,7 @@ function VoteButton({ count, hasVoted, disabled, onVote }: {
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
       </svg>
       {count}
+      <span className="ml-0.5">{hasVoted ? 'Voted' : 'Vote'}</span>
     </button>
   )
 }
@@ -200,10 +203,10 @@ function VotingColumn({ columnId, columnLabel, columnColor, sessionId, userKey, 
 
 // ─── Vote status bar ──────────────────────────────────────────────────────────
 
-function VoteDots({ used }: { used: number }) {
+function VoteDots({ used, maxVotes }: { used: number; maxVotes: number }) {
   return (
     <div className="flex items-center gap-0.5">
-      {Array.from({ length: MAX_VOTES }).map((_, i) => (
+      {Array.from({ length: maxVotes }).map((_, i) => (
         <div
           key={i}
           className={`w-3 h-3 rounded-full ${i < used ? 'bg-[#B83C28]' : 'bg-[#2d1200]/12'}`}
@@ -213,10 +216,11 @@ function VoteDots({ used }: { used: number }) {
   )
 }
 
-function VoteStatusBar({ userVoteCount, sessionId, userKey }: {
+function VoteStatusBar({ userVoteCount, sessionId, userKey, maxVotes }: {
   userVoteCount: number
   sessionId: string
   userKey: string
+  maxVotes: number
 }) {
   const allCards = useBoardStore((s) => s.cards)
   const votes = useBoardStore((s) => s.votes)
@@ -240,7 +244,7 @@ function VoteStatusBar({ userVoteCount, sessionId, userKey }: {
     [participants, sessionCardIds, votes, userKey]
   )
 
-  const votesLeft = MAX_VOTES - userVoteCount
+  const votesLeft = maxVotes - userVoteCount
 
   return (
     <div className="mb-4 px-1 flex flex-col gap-2">
@@ -248,7 +252,7 @@ function VoteStatusBar({ userVoteCount, sessionId, userKey }: {
       <div className="flex items-center gap-2">
         <span className="text-xs text-[#2d1200]/50 font-medium w-16 shrink-0">You</span>
         <div className="flex items-center gap-1">
-          {Array.from({ length: MAX_VOTES }).map((_, i) => (
+          {Array.from({ length: maxVotes }).map((_, i) => (
             <div
               key={i}
               className={`w-5 h-5 rounded-full flex items-center justify-center ${
@@ -270,11 +274,11 @@ function VoteStatusBar({ userVoteCount, sessionId, userKey }: {
 
       {/* Team votes */}
       {participantVotes.map((p) => {
-        const remaining = MAX_VOTES - p.used
+        const remaining = maxVotes - p.used
         return (
           <div key={p.user_key} className="flex items-center gap-2">
             <span className="text-xs text-[#2d1200]/60 font-medium w-16 shrink-0 truncate">{p.display_name}</span>
-            <VoteDots used={p.used} />
+            <VoteDots used={p.used} maxVotes={maxVotes} />
             <span className={`text-xs font-medium ${remaining === 0 ? 'text-[#B83C28]' : 'text-[#2d1200]/50'}`}>
               {remaining === 0 ? 'Done' : `${remaining} left`}
             </span>
@@ -285,11 +289,45 @@ function VoteStatusBar({ userVoteCount, sessionId, userKey }: {
   )
 }
 
+// ─── Facilitator vote limit controls ─────────────────────────────────────────
+
+function VoteLimitControls({ sessionId, maxVotes }: { sessionId: string; maxVotes: number }) {
+  const supabase = getSupabaseClient()
+
+  async function adjust(delta: number) {
+    const newVal = Math.min(MAX_VOTES_LIMIT, Math.max(MIN_VOTES, maxVotes + delta))
+    if (newVal === maxVotes) return
+    await supabase.from('sessions').update({ max_votes: newVal }).eq('id', sessionId)
+  }
+
+  return (
+    <div className="mb-4 flex items-center gap-2">
+      <span className="text-xs text-[#2d1200]/60 font-medium">Votes per person</span>
+      <div className="flex items-center gap-1 ml-auto">
+        <button
+          onClick={() => adjust(-1)}
+          disabled={maxVotes <= MIN_VOTES}
+          className="w-7 h-7 flex items-center justify-center rounded-lg text-[#2d1200]/60 hover:text-[#2d1200] hover:bg-[#2d1200]/10 font-bold disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+        >−</button>
+        <span className="text-sm font-semibold text-[#2d1200] w-5 text-center">{maxVotes}</span>
+        <button
+          onClick={() => adjust(1)}
+          disabled={maxVotes >= MAX_VOTES_LIMIT}
+          className="w-7 h-7 flex items-center justify-center rounded-lg text-[#2d1200]/60 hover:text-[#2d1200] hover:bg-[#2d1200]/10 font-bold disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+        >+</button>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-export default function VotingBoard({ format, sessionId, userKey }: VotingBoardProps) {
+export default function VotingBoard({ format, sessionId, userKey, isFacilitator }: VotingBoardProps) {
   const allCards = useBoardStore((s) => s.cards)
   const votes = useBoardStore((s) => s.votes)
+  const session = useBoardStore((s) => s.session)
+
+  const maxVotes = session?.max_votes ?? MIN_VOTES
 
   const userVoteCount = useMemo(() => {
     const sessionCardIds = Object.values(allCards)
@@ -301,11 +339,14 @@ export default function VotingBoard({ format, sessionId, userKey }: VotingBoardP
     )
   }, [allCards, votes, sessionId, userKey])
 
-  const votesLeft = Math.max(0, MAX_VOTES - userVoteCount)
+  const votesLeft = Math.max(0, maxVotes - userVoteCount)
 
   return (
     <div>
-      <VoteStatusBar userVoteCount={userVoteCount} sessionId={sessionId} userKey={userKey} />
+      {isFacilitator && (
+        <VoteLimitControls sessionId={sessionId} maxVotes={maxVotes} />
+      )}
+      <VoteStatusBar userVoteCount={userVoteCount} sessionId={sessionId} userKey={userKey} maxVotes={maxVotes} />
       <div className="grid gap-4 md:grid-cols-3">
         {format.columns.map((col) => (
           <VotingColumn

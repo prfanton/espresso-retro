@@ -9,6 +9,7 @@ export interface Session {
   is_revealed: boolean
   is_locked: boolean
   phase: RetroPhase
+  max_votes?: number
 }
 
 export interface Card {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getSupabaseClient } from '@/lib/supabase/client'
 import { useBoardStore } from '@/store/boardStore'
 import { usePresenceStore } from '@/store/presenceStore'
@@ -10,12 +10,19 @@ interface UseRetroChannelOptions {
   sessionId: string
   userKey: string
   displayName: string
+  onPresenceSync?: () => void
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyPayload = { new: any; old: any; payload: any }
 
-export function useRetroChannel({ sessionId, userKey, displayName }: UseRetroChannelOptions) {
+export interface TimerState {
+  totalSeconds: number
+  running: boolean
+  ts: number
+}
+
+export function useRetroChannel({ sessionId, userKey, displayName, onPresenceSync }: UseRetroChannelOptions) {
   const channelRef = useRef<ReturnType<ReturnType<typeof getSupabaseClient>['channel']> | null>(null)
   const {
     setSession, setCards, setVotes, setGroups, setReactions, setLoaded,
@@ -27,6 +34,9 @@ export function useRetroChannel({ sessionId, userKey, displayName }: UseRetroCha
   const { setParticipants, setTyping, clearTyping } = usePresenceStore.getState()
 
   const typingTimeouts = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+
+  const [timerState, setTimerState] = useState<TimerState | null>(null)
+  const [resultsNavigatedId, setResultsNavigatedId] = useState<string | null>(null)
 
   async function fetchInitialData() {
     const supabase = getSupabaseClient()
@@ -135,6 +145,7 @@ export function useRetroChannel({ sessionId, userKey, displayName }: UseRetroCha
       const state = channel.presenceState() as Record<string, PresenceUser[]>
       const participants = Object.values(state).flat()
       setParticipants(participants)
+      onPresenceSync?.()
     })
 
     // Broadcast: typing indicator
@@ -151,6 +162,18 @@ export function useRetroChannel({ sessionId, userKey, displayName }: UseRetroCha
         clearTyping(cardId)
         delete typingTimeouts.current[cardId]
       }, 3000)
+    })
+
+    // Broadcast: timer sync
+    channel.on('broadcast', { event: 'TIMER_SYNC' }, (payload: AnyPayload) => {
+      const { totalSeconds, running } = payload.payload as { totalSeconds: number; running: boolean }
+      setTimerState({ totalSeconds, running, ts: Date.now() })
+    })
+
+    // Broadcast: results navigation
+    channel.on('broadcast', { event: 'RESULTS_NAVIGATE' }, (payload: AnyPayload) => {
+      const { itemId } = payload.payload as { itemId: string }
+      setResultsNavigatedId(itemId)
     })
 
     // Subscribe
@@ -182,5 +205,21 @@ export function useRetroChannel({ sessionId, userKey, displayName }: UseRetroCha
     })
   }
 
-  return { broadcastTyping }
+  function broadcastTimerSync(totalSeconds: number, running: boolean) {
+    channelRef.current?.send({
+      type: 'broadcast',
+      event: 'TIMER_SYNC',
+      payload: { totalSeconds, running },
+    })
+  }
+
+  function broadcastResultsNavigate(itemId: string) {
+    channelRef.current?.send({
+      type: 'broadcast',
+      event: 'RESULTS_NAVIGATE',
+      payload: { itemId },
+    })
+  }
+
+  return { broadcastTyping, broadcastTimerSync, broadcastResultsNavigate, timerState, resultsNavigatedId }
 }
