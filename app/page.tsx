@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { getUserKey } from '@/lib/utils/userKey'
 import { FORMATS } from '@/lib/utils/sessionFormats'
@@ -11,6 +11,15 @@ export default function HomePage() {
   const [format, setFormat] = useState('ssc')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // Pre-fill the title with a dated default (e.g. "Team retrospective 07/24").
+  // Done in an effect so the client-computed date never mismatches SSR output.
+  useEffect(() => {
+    const now = new Date()
+    const mm = String(now.getMonth() + 1).padStart(2, '0')
+    const dd = String(now.getDate()).padStart(2, '0')
+    setTitle(`Team retrospective ${mm}/${dd}`)
+  }, [])
 
   async function handleCreate() {
     setLoading(true)
