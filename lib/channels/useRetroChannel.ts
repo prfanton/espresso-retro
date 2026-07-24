@@ -34,6 +34,7 @@ export function useRetroChannel({ sessionId, userKey, displayName, onPresenceSyn
   const { setParticipants, setTyping, clearTyping } = usePresenceStore.getState()
 
   const typingTimeouts = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+  const readyRef = useRef(false)
 
   const [timerState, setTimerState] = useState<TimerState | null>(null)
   const [resultsNavigatedId, setResultsNavigatedId] = useState<string | null>(null)
@@ -183,6 +184,7 @@ export function useRetroChannel({ sessionId, userKey, displayName, onPresenceSyn
           user_key: userKey,
           display_name: displayName,
           online_at: new Date().toISOString(),
+          ready: readyRef.current,
         })
         // Catch-up fetch for any missed events
         await fetchInitialData()
@@ -221,5 +223,16 @@ export function useRetroChannel({ sessionId, userKey, displayName, onPresenceSyn
     })
   }
 
-  return { broadcastTyping, broadcastTimerSync, broadcastResultsNavigate, timerState, resultsNavigatedId }
+  function setReady(ready: boolean) {
+    if (readyRef.current === ready) return
+    readyRef.current = ready
+    channelRef.current?.track({
+      user_key: userKey,
+      display_name: displayName,
+      online_at: new Date().toISOString(),
+      ready,
+    })
+  }
+
+  return { broadcastTyping, broadcastTimerSync, broadcastResultsNavigate, setReady, timerState, resultsNavigatedId }
 }

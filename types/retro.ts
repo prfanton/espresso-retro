@@ -60,6 +60,7 @@ export interface PresenceUser {
   user_key: string
   display_name: string
   online_at: string
+  ready?: boolean
 }
 
 export interface ColumnDef {

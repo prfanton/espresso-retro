@@ -24,6 +24,17 @@ import { getSupabaseClient } from '@/lib/supabase/client'
 import { useBoardStore } from '@/store/boardStore'
 import type { RetroFormat, Card, CardGroup } from '@/types/retro'
 
+// Derives a group name from a card's content: first few words, trimmed to a
+// reasonable length. Guarantees a new group is always named after one of its
+// cards, even when the AI naming endpoint is unavailable.
+function deriveGroupName(content: string): string {
+  const cleaned = content.replace(/\s+/g, ' ').trim()
+  if (!cleaned) return 'Group'
+  const words = cleaned.split(' ').slice(0, 4).join(' ')
+  const name = words.length > 30 ? words.slice(0, 30).trim() + '…' : words
+  return name || 'Group'
+}
+
 // Disables the "shuffle cards while dragging" animation — cards stay put and
 // only the hover highlight communicates where a drop will land.
 const noSortingStrategy: SortingStrategy = () => null
@@ -503,10 +514,12 @@ export default function GroupingBoard({ format, sessionId }: GroupingBoardProps)
       const existingGroupsInCol = groupsByColumn[targetColId] ?? []
       const newPosition = existingGroupsInCol.length
 
-      // Create the group
+      // Create the group with a name derived from one of its cards, so it is
+      // always meaningfully named even if the AI enhancement below is skipped.
+      const initialName = deriveGroupName(targetCard.content) || deriveGroupName(draggedCard.content)
       const { data: newGroup } = await supabase
         .from('groups')
-        .insert({ session_id: sessionId, column_id: targetColId, name: 'Group', position: newPosition })
+        .insert({ session_id: sessionId, column_id: targetColId, name: initialName, position: newPosition })
         .select()
         .single()
 
