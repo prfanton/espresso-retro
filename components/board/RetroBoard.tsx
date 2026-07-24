@@ -106,12 +106,22 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
 
   const broadcastTimerSyncRef = useRef<((totalSeconds: number, running: boolean) => void) | null>(null)
 
-  const { broadcastTyping, broadcastTimerSync, broadcastResultsNavigate, timerState, resultsNavigatedId } = useRetroChannel({
+  const { broadcastTyping, broadcastTimerSync, broadcastResultsNavigate, setReady, timerState, resultsNavigatedId } = useRetroChannel({
     sessionId: session.id,
     userKey,
     displayName: displayName ?? '',
     onPresenceSync: handlePresenceSync,
   })
+
+  const myReady = participants.find((p) => p.user_key === userKey)?.ready ?? false
+  const readyCount = participants.filter((p) => p.ready).length
+
+  // Clear ready state whenever we leave the writing phase, so a fresh writing
+  // round always starts with nobody marked ready.
+  useEffect(() => {
+    if (phase !== 'writing') setReady(false)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase])
 
   broadcastTimerSyncRef.current = broadcastTimerSync
 
@@ -176,7 +186,7 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
-            <PresenceBar />
+            <PresenceBar showReady={phase === 'writing'} />
             {isFacilitator
               ? <FacilitatorControls onTimerSync={handleTimerSync} />
               : timerState && <TimerDisplay timerState={timerState} />
@@ -192,8 +202,30 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
           <div className="bg-white/20 backdrop-blur-md border border-white/40 rounded-2xl px-5 py-3 flex items-center justify-between gap-4 shadow-[0_4px_24px_rgba(45,18,0,0.10),0_1px_4px_rgba(45,18,0,0.06)]" style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
             <WorkflowBreadcrumb phase={phase} />
 
-            {isFacilitator && (
-              <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
+              {phase === 'writing' && (
+                <>
+                  <span className="hidden sm:inline text-xs font-medium text-[#2d1200]/50">
+                    {readyCount} of {participants.length} ready
+                  </span>
+                  <button
+                    onClick={() => setReady(!myReady)}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                      myReady
+                        ? 'bg-green-600 text-white shadow-sm shadow-green-600/30'
+                        : 'text-[#2d1200]/70 bg-[#2d1200]/8 hover:bg-[#2d1200]/15 border border-[#2d1200]/15'
+                    }`}
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                    </svg>
+                    {myReady ? 'Ready' : "I'm ready"}
+                  </button>
+                </>
+              )}
+
+              {isFacilitator && (
+                <>
                 {prevLabel && (
                   <button
                     onClick={handleRetreat}
@@ -224,8 +256,9 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
                     Finish 🎉
                   </button>
                 )}
-              </div>
-            )}
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
