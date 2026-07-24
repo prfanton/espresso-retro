@@ -178,14 +178,14 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
               <img
                 src="/logo-espresso-retro-horizontal.png"
                 alt="Espresso Retro"
-                className="h-20 w-auto"
+                className="h-12 sm:h-20 w-auto"
               />
             </a>
             <span className="text-[#2d1200]/30">/</span>
-            <h1 className="text-[#2d1200] font-semibold truncate">{session.title}</h1>
+            <h1 className="text-[#2d1200] font-semibold truncate text-sm sm:text-base">{session.title}</h1>
           </div>
 
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <PresenceBar showReady={phase === 'writing'} />
             {isFacilitator
               ? <FacilitatorControls onTimerSync={handleTimerSync} />
@@ -199,10 +199,10 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
       {/* Workflow bar */}
       <div className="px-4 pb-4">
         <div className="max-w-[1200px] mx-auto">
-          <div className="bg-white/20 backdrop-blur-md border border-white/40 rounded-2xl px-5 py-3 flex items-center justify-between gap-4 shadow-[0_4px_24px_rgba(45,18,0,0.10),0_1px_4px_rgba(45,18,0,0.06)]" style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
+          <div className="bg-white/20 backdrop-blur-md border border-white/40 rounded-2xl px-3 sm:px-5 py-3 flex flex-wrap items-center justify-between gap-3 shadow-[0_4px_24px_rgba(45,18,0,0.10),0_1px_4px_rgba(45,18,0,0.06)]" style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
             <WorkflowBreadcrumb phase={phase} />
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 shrink-0 ml-auto">
               {phase === 'writing' && (
                 <>
                   <span className="hidden sm:inline text-xs font-medium text-[#2d1200]/50">

@@ -203,9 +203,9 @@ export default function ResultsView({ format, sessionId, userKey, isFacilitator,
   }
 
   return (
-    <div className="flex gap-6 h-full min-h-[600px]">
+    <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-full lg:min-h-[600px]">
       {/* ── Left sidebar ── */}
-      <aside className="w-64 shrink-0 flex flex-col gap-1 overflow-y-auto rounded-2xl border border-white/40 bg-white/20 shadow-[0_4px_24px_rgba(45,18,0,0.10),0_1px_4px_rgba(45,18,0,0.06)] p-3" style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
+      <aside className="w-full lg:w-64 shrink-0 flex flex-col gap-1 max-h-72 lg:max-h-none overflow-y-auto rounded-2xl border border-white/40 bg-white/20 shadow-[0_4px_24px_rgba(45,18,0,0.10),0_1px_4px_rgba(45,18,0,0.06)] p-3" style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
         {sidebarItems.map((item) => {
           const isActive = item.id === activeId
           if (item.kind === 'group') {
@@ -268,12 +268,12 @@ export default function ResultsView({ format, sessionId, userKey, isFacilitator,
       </aside>
 
       {/* ── Center panel ── */}
-      <main className="flex-1 min-w-0 rounded-2xl border border-white/40 bg-white/30 shadow-[0_4px_24px_rgba(45,18,0,0.10),0_1px_4px_rgba(45,18,0,0.06)] p-6" style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
+      <main className="flex-1 min-w-0 rounded-2xl border border-white/40 bg-white/30 shadow-[0_4px_24px_rgba(45,18,0,0.10),0_1px_4px_rgba(45,18,0,0.06)] p-4 sm:p-6" style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
         {activeItem ? (
           activeItem.kind === 'group' ? (
             <div>
               {/* Group header */}
-              <div className="flex items-center gap-2 mb-6">
+              <div className="flex flex-wrap items-center gap-2 gap-y-2 mb-6">
                 <svg className="w-4 h-4 text-[#2d1200]/40 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
@@ -309,7 +309,7 @@ export default function ResultsView({ format, sessionId, userKey, isFacilitator,
           ) : (
             <div>
               {/* Ungrouped card header */}
-              <div className="flex items-center gap-2 mb-6">
+              <div className="flex flex-wrap items-center gap-2 gap-y-2 mb-6">
                 <img src={columnDotImg(activeItem.card.column_id)} width={24} height={24} alt="" />
                 <span className="text-xs text-[#2d1200]/50">{columnLabel(activeItem.card.column_id)}</span>
                 <div className="ml-auto flex items-center gap-2">
