@@ -301,19 +301,22 @@ function VoteLimitControls({ sessionId, maxVotes }: { sessionId: string; maxVote
   }
 
   return (
-    <div className="mb-4 flex items-center gap-2">
-      <span className="text-xs text-[#2d1200]/60 font-medium">Votes per person</span>
-      <div className="flex items-center gap-1 ml-auto">
+    <div
+      className="mb-4 inline-flex flex-col gap-1.5 rounded-2xl border border-white/40 bg-white/20 px-4 py-3 shadow-[0_4px_24px_rgba(45,18,0,0.10),0_1px_4px_rgba(45,18,0,0.06)]"
+      style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
+    >
+      <span className="text-xs text-[#2d1200]/60 font-medium">Total votes</span>
+      <div className="flex items-center gap-1">
         <button
           onClick={() => adjust(-1)}
           disabled={maxVotes <= MIN_VOTES}
-          className="w-7 h-7 flex items-center justify-center rounded-lg text-[#2d1200]/60 hover:text-[#2d1200] hover:bg-[#2d1200]/10 font-bold disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+          className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/40 text-[#2d1200]/60 hover:text-[#2d1200] hover:bg-white/70 font-bold disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
         >−</button>
-        <span className="text-sm font-semibold text-[#2d1200] w-5 text-center">{maxVotes}</span>
+        <span className="text-sm font-semibold text-[#2d1200] w-6 text-center">{maxVotes}</span>
         <button
           onClick={() => adjust(1)}
           disabled={maxVotes >= MAX_VOTES_LIMIT}
-          className="w-7 h-7 flex items-center justify-center rounded-lg text-[#2d1200]/60 hover:text-[#2d1200] hover:bg-[#2d1200]/10 font-bold disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+          className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/40 text-[#2d1200]/60 hover:text-[#2d1200] hover:bg-white/70 font-bold disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
         >+</button>
       </div>
     </div>
