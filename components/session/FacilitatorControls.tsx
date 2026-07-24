@@ -43,15 +43,24 @@ export function TimerDisplay({ timerState }: { timerState: TimerState }) {
 
 interface FacilitatorControlsProps {
   onTimerSync?: (totalSeconds: number, running: boolean) => void
+  onTimerStateChange?: (totalSeconds: number, running: boolean) => void
 }
 
-export default function FacilitatorControls({ onTimerSync }: FacilitatorControlsProps) {
+export default function FacilitatorControls({ onTimerSync, onTimerStateChange }: FacilitatorControlsProps) {
   const session = useBoardStore((s) => s.session)
 
   const DEFAULT_MINUTES = 5
   const [totalSeconds, setTotalSeconds] = useState(DEFAULT_MINUTES * 60)
   const [running, setRunning] = useState(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Report the live timer state — including every tick — to the parent so that
+  // a re-broadcast (e.g. when a new participant joins) carries the *current*
+  // remaining time instead of resetting everyone's countdown to the start.
+  useEffect(() => {
+    onTimerStateChange?.(totalSeconds, running)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalSeconds, running])
 
   useEffect(() => {
     if (running) {
