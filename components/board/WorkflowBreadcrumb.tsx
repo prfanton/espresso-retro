@@ -61,7 +61,7 @@ export default function WorkflowBreadcrumb({ phase }: WorkflowBreadcrumbProps) {
         return (
           <div key={step.phase} className="flex items-center gap-1">
             <div
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+              className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                 isCurrent
                   ? 'bg-[#B83C28] text-white shadow-sm'
                   : isCompleted
@@ -70,10 +70,12 @@ export default function WorkflowBreadcrumb({ phase }: WorkflowBreadcrumbProps) {
               }`}
             >
               {step.icon}
-              <span>{step.label}</span>
+              {/* On small screens only the current step shows its label, keeping
+                  the four-step trail from overflowing the workflow bar. */}
+              <span className={isCurrent ? 'inline' : 'hidden sm:inline'}>{step.label}</span>
             </div>
             {idx < STEPS.length - 1 && (
-              <div className={`w-4 h-px ${idx < currentIndex ? 'bg-[#2d1200]/30' : 'bg-[#2d1200]/15'}`} />
+              <div className={`w-2 sm:w-4 h-px ${idx < currentIndex ? 'bg-[#2d1200]/30' : 'bg-[#2d1200]/15'}`} />
             )}
           </div>
         )
