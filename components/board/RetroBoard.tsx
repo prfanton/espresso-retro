@@ -130,6 +130,12 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
     broadcastTimerSync(totalSeconds, running)
   }
 
+  // Keep the last-known timer state current on every tick (without broadcasting)
+  // so presence-sync re-broadcasts always send the live remaining time.
+  function handleTimerStateChange(totalSeconds: number, running: boolean) {
+    lastTimerStateRef.current = { totalSeconds, running }
+  }
+
   async function handleJoin(name: string) {
     setDisplayName(session.id, name)
     setDisplayNameState(name)
@@ -188,7 +194,7 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <PresenceBar showReady={phase === 'writing'} />
             {isFacilitator
-              ? <FacilitatorControls onTimerSync={handleTimerSync} />
+              ? <FacilitatorControls onTimerSync={handleTimerSync} onTimerStateChange={handleTimerStateChange} />
               : timerState && <TimerDisplay timerState={timerState} />
             }
             <InviteLinkButton />

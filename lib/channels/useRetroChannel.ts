@@ -144,7 +144,12 @@ export function useRetroChannel({ sessionId, userKey, displayName, onPresenceSyn
     // Presence
     channel.on('presence', { event: 'sync' }, () => {
       const state = channel.presenceState() as Record<string, PresenceUser[]>
-      const participants = Object.values(state).flat()
+      // A single user_key can briefly hold more than one presence meta — e.g.
+      // after re-tracking to update the "ready" flag. Collapse each key to its
+      // most recent meta so a participant is never listed (or counted) twice.
+      const participants = Object.values(state).map((metas) =>
+        metas.reduce((latest, p) => (p.online_at > latest.online_at ? p : latest))
+      )
       setParticipants(participants)
       onPresenceSync?.()
     })
