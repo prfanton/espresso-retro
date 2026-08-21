@@ -17,6 +17,7 @@ import JoinModal from '@/components/session/JoinModal'
 import InviteLinkButton from '@/components/session/InviteLinkButton'
 import FacilitatorControls, { TimerDisplay } from '@/components/session/FacilitatorControls'
 import PresenceBar from '@/components/presence/PresenceBar'
+import { fireConfetti } from '@/components/effects/ConfettiBurst'
 import type { Session } from '@/types/retro'
 
 interface RetroBoardProps {
@@ -67,6 +68,7 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
   const [mounted, setMounted] = useState(false)
   const [showFinishModal, setShowFinishModal] = useState(false)
   const lastTimerStateRef = useRef<{ totalSeconds: number; running: boolean } | null>(null)
+  const confettiFiredRef = useRef(false)
 
   const boardSession = useBoardStore((s) => s.session)
   const setSession = useBoardStore((s) => s.setSession)
@@ -134,7 +136,27 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
   // so presence-sync re-broadcasts always send the live remaining time.
   function handleTimerStateChange(totalSeconds: number, running: boolean) {
     lastTimerStateRef.current = { totalSeconds, running }
+    // Re-arm the confetti latch while the facilitator's countdown is still active.
+    if (running && totalSeconds > 0) confettiFiredRef.current = false
   }
+
+  // Fire a full-screen confetti burst when the timer reaches zero. Latched so a
+  // single zero-transition fires once even if both timer components (or repeated
+  // broadcasts) report it; re-arms below when a fresh countdown is running.
+  function handleTimerEnd() {
+    if (confettiFiredRef.current) return
+    confettiFiredRef.current = true
+    fireConfetti()
+  }
+
+  // Re-arm the confetti latch whenever a countdown with time remaining is active,
+  // so a reset-and-run-again timer produces confetti once more.
+  useEffect(() => {
+    if (timerState?.running && timerState.totalSeconds > 0) {
+      const elapsed = Math.floor((Date.now() - timerState.ts) / 1000)
+      if (timerState.totalSeconds - elapsed > 0) confettiFiredRef.current = false
+    }
+  }, [timerState])
 
   async function handleJoin(name: string) {
     setDisplayName(session.id, name)
@@ -194,8 +216,8 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <PresenceBar showReady={phase === 'writing'} />
             {isFacilitator
-              ? <FacilitatorControls onTimerSync={handleTimerSync} onTimerStateChange={handleTimerStateChange} />
-              : timerState && <TimerDisplay timerState={timerState} />
+              ? <FacilitatorControls onTimerSync={handleTimerSync} onTimerStateChange={handleTimerStateChange} onTimerEnd={handleTimerEnd} />
+              : timerState && <TimerDisplay timerState={timerState} onTimerEnd={handleTimerEnd} />
             }
             <InviteLinkButton />
           </div>

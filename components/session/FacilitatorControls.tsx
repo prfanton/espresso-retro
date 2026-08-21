@@ -6,22 +6,30 @@ import type { TimerState } from '@/lib/channels/useRetroChannel'
 
 // ─── Read-only timer for participants ─────────────────────────────────────────
 
-export function TimerDisplay({ timerState }: { timerState: TimerState }) {
+export function TimerDisplay({ timerState, onTimerEnd }: { timerState: TimerState; onTimerEnd?: () => void }) {
   const [display, setDisplay] = useState(timerState.totalSeconds)
+  const prevRemainingRef = useRef(timerState.totalSeconds)
 
   useEffect(() => {
     if (!timerState.running) {
       setDisplay(timerState.totalSeconds)
+      prevRemainingRef.current = timerState.totalSeconds
       return
     }
     function tick() {
       const elapsed = Math.floor((Date.now() - timerState.ts) / 1000)
-      setDisplay(Math.max(0, timerState.totalSeconds - elapsed))
+      const remaining = Math.max(0, timerState.totalSeconds - elapsed)
+      // Fire once on the transition into zero while the timer was counting down.
+      if (remaining === 0 && prevRemainingRef.current > 0) {
+        onTimerEnd?.()
+      }
+      prevRemainingRef.current = remaining
+      setDisplay(remaining)
     }
     tick()
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
-  }, [timerState])
+  }, [timerState, onTimerEnd])
 
   const mins = Math.floor(display / 60)
   const secs = display % 60
@@ -44,9 +52,10 @@ export function TimerDisplay({ timerState }: { timerState: TimerState }) {
 interface FacilitatorControlsProps {
   onTimerSync?: (totalSeconds: number, running: boolean) => void
   onTimerStateChange?: (totalSeconds: number, running: boolean) => void
+  onTimerEnd?: () => void
 }
 
-export default function FacilitatorControls({ onTimerSync, onTimerStateChange }: FacilitatorControlsProps) {
+export default function FacilitatorControls({ onTimerSync, onTimerStateChange, onTimerEnd }: FacilitatorControlsProps) {
   const session = useBoardStore((s) => s.session)
 
   const DEFAULT_MINUTES = 5
@@ -66,7 +75,7 @@ export default function FacilitatorControls({ onTimerSync, onTimerStateChange }:
     if (running) {
       intervalRef.current = setInterval(() => {
         setTotalSeconds((s) => {
-          if (s <= 1) { setRunning(false); return 0 }
+          if (s <= 1) { setRunning(false); if (s > 0) onTimerEnd?.(); return 0 }
           return s - 1
         })
       }, 1000)

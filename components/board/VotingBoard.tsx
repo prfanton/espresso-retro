@@ -247,10 +247,10 @@ function VoteStatusBar({ userVoteCount, sessionId, userKey, maxVotes }: {
   const votesLeft = maxVotes - userVoteCount
 
   return (
-    <div className="mb-4 px-1 flex flex-col gap-2">
+    <div className="mb-4 px-1 flex flex-wrap items-center gap-x-4 gap-y-2">
       {/* My votes */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-[#2d1200]/50 font-medium w-16 shrink-0">You</span>
+      <div className="flex items-center gap-2 bg-white/30 rounded-lg px-2 py-1">
+        <span className="text-xs text-[#2d1200]/50 font-medium">You</span>
         <div className="flex items-center gap-1">
           {Array.from({ length: maxVotes }).map((_, i) => (
             <div
@@ -277,7 +277,7 @@ function VoteStatusBar({ userVoteCount, sessionId, userKey, maxVotes }: {
         const remaining = maxVotes - p.used
         return (
           <div key={p.user_key} className="flex items-center gap-2">
-            <span className="text-xs text-[#2d1200]/60 font-medium w-16 shrink-0 truncate">{p.display_name}</span>
+            <span className="text-xs text-[#2d1200]/60 font-medium max-w-[7rem] truncate">{p.display_name}</span>
             <VoteDots used={p.used} maxVotes={maxVotes} />
             <span className={`text-xs font-medium ${remaining === 0 ? 'text-[#B83C28]' : 'text-[#2d1200]/50'}`}>
               {remaining === 0 ? 'Done' : `${remaining} left`}
