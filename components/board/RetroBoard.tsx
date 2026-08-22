@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { getUserKey, getDisplayName, setDisplayName } from '@/lib/utils/userKey'
+import { getDisplayName, setDisplayName } from '@/lib/utils/userKey'
+import { getAuthUserId } from '@/lib/utils/auth'
 import { getFormat } from '@/lib/utils/sessionFormats'
 import { getPhaseCapabilities, getNextPhase, getPrevPhase, getPhaseDbPatch } from '@/lib/utils/phaseUtils'
 import { useRetroChannel } from '@/lib/channels/useRetroChannel'
@@ -63,7 +64,7 @@ function FinishModal({ onExport, onClose }: { onExport: () => void; onClose: () 
 // ─── RetroBoard ────────────────────────────────────────────────────────────────
 
 export default function RetroBoard({ session: initialSession }: RetroBoardProps) {
-  const [userKey] = useState(() => getUserKey())
+  const [userKey, setUserKey] = useState<string | null>(null)
   const [displayName, setDisplayNameState] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
   const [showFinishModal, setShowFinishModal] = useState(false)
@@ -78,8 +79,24 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
   useEffect(() => {
     setSession(initialSession)
     setMounted(true)
-    const storedName = getDisplayName(initialSession.id)
-    setDisplayNameState(storedName)
+    // Establish the anonymous auth identity; auth.uid() becomes our userKey.
+    // For a returning user (name already stored), re-assert membership before
+    // revealing the board so the private realtime channel authorizes them.
+    getAuthUserId()
+      .then(async (uid) => {
+        const storedName = getDisplayName(initialSession.id)
+        if (storedName) {
+          await getSupabaseClient()
+            .from('participants')
+            .upsert(
+              { session_id: initialSession.id, user_key: uid, display_name: storedName },
+              { onConflict: 'session_id,user_key' }
+            )
+          setDisplayNameState(storedName)
+        }
+        setUserKey(uid)
+      })
+      .catch(() => setUserKey(null))
   }, [initialSession, setSession])
 
   const session = boardSession ?? initialSession
@@ -110,7 +127,7 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
 
   const { broadcastTyping, broadcastTimerSync, broadcastResultsNavigate, setReady, timerState, resultsNavigatedId } = useRetroChannel({
     sessionId: session.id,
-    userKey,
+    userKey: userKey ?? '',
     displayName: displayName ?? '',
     onPresenceSync: handlePresenceSync,
   })
@@ -159,15 +176,18 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
   }, [timerState])
 
   async function handleJoin(name: string) {
+    if (!userKey) return
     setDisplayName(session.id, name)
-    setDisplayNameState(name)
     const supabase = getSupabaseClient()
+    // Persist membership BEFORE revealing the board: the realtime channel is
+    // private and only authorizes members, and is_session_member reads this row.
     await supabase
       .from('participants')
       .upsert(
         { session_id: session.id, user_key: userKey, display_name: name },
         { onConflict: 'session_id,user_key' }
       )
+    setDisplayNameState(name)
   }
 
   async function handleAdvance() {
@@ -186,7 +206,7 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
     window.open(`/api/export/${session.id}`, '_blank')
   }
 
-  if (!mounted) {
+  if (!mounted || !userKey) {
     return (
       <div className="animated-bg min-h-screen flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-[#B83C28] border-t-transparent rounded-full animate-spin" />

@@ -130,7 +130,25 @@ votes         id · card_id · user_key   (UNIQUE card_id, user_key)
 participants  id · session_id · user_key · display_name
 ```
 
-Identity is anonymous — each browser gets a UUID v4 stored in `localStorage`. RLS policies ensure users can only modify their own cards.
+### Identity & security
+
+Identity is anonymous but **server-authoritative**: every visitor gets a Supabase
+**anonymous auth** session (a signed JWT), and its `auth.uid()` is what backs authorship,
+votes, and the facilitator role — not a client-supplied value. **Row Level Security** policies
+(versioned in [`supabase/migrations/`](supabase/migrations)) enforce this at the database:
+
+- Only the facilitator (`facilitator_id = auth.uid()`) can change a session's phase / vote limit.
+- Cards, votes, and reactions can only be written as yourself; card **content** edits are
+  author-only (enforced by a trigger), while grouping stays collaborative.
+- Votes are idempotent via `UNIQUE(card_id, user_key)` and can't be stuffed by rotating keys.
+- The realtime channel is **private**, so only session members can send/receive live events.
+- The export endpoint requires authentication and session membership.
+
+**Prerequisites** (one-time, per Supabase project):
+
+1. Enable **Anonymous sign-ins** — Authentication → Providers → Anonymous.
+2. Apply the migrations in `supabase/migrations/` (`supabase db push`, or paste into the SQL
+   editor). These enable RLS; review the column-type notes at the top of `0001_rls.sql` first.
 
 ---
 

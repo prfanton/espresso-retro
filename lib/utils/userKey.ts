@@ -1,14 +1,5 @@
-const USER_KEY_STORAGE_KEY = 'retro_user_key'
-
-export function getUserKey(): string {
-  if (typeof window === 'undefined') return ''
-  let key = localStorage.getItem(USER_KEY_STORAGE_KEY)
-  if (!key) {
-    key = crypto.randomUUID()
-    localStorage.setItem(USER_KEY_STORAGE_KEY, key)
-  }
-  return key
-}
+// Identity now comes from Supabase anonymous auth (see lib/utils/auth.ts).
+// This module only persists the per-session display name.
 
 export function getDisplayName(sessionId: string): string | null {
   if (typeof window === 'undefined') return null

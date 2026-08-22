@@ -1,17 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServerClient } from '@/lib/supabase/server'
 
-export async function POST(req: NextRequest) {
-  const { facilitator_id, title, format } = await req.json()
+const MAX_TITLE_LENGTH = 80
 
-  if (!facilitator_id) {
-    return NextResponse.json({ error: 'facilitator_id required' }, { status: 400 })
-  }
+export async function POST(req: NextRequest) {
+  const { title, format } = await req.json()
 
   const supabase = await getSupabaseServerClient()
+
+  // Identity is server-authoritative: the facilitator is the authenticated
+  // (anonymous) user, never a value the client supplies.
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  }
+
+  const safeTitle = (typeof title === 'string' ? title.trim() : '').slice(0, MAX_TITLE_LENGTH)
+
   const { data, error } = await supabase
     .from('sessions')
-    .insert({ facilitator_id, title: title || 'Team Retrospective', format: format || 'wwwdw' })
+    .insert({
+      facilitator_id: user.id,
+      title: safeTitle || 'Team Retrospective',
+      format: format || 'wwwdw',
+    })
     .select()
     .single()
 
