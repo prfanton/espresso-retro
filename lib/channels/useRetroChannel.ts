@@ -70,8 +70,18 @@ export function useRetroChannel({ sessionId, userKey, displayName, onPresenceSyn
     const supabase = getSupabaseClient()
     const channelName = `retro:${sessionId}`
 
+    // Ensure the realtime socket carries the current auth JWT so a *private*
+    // channel can authorize this member. Private channels gate broadcast +
+    // presence to authenticated session members (via the realtime.messages RLS
+    // policy), closing the open-internet forgery surface on TIMER_SYNC /
+    // RESULTS_NAVIGATE / CARD_TYPING.
+    supabase.auth.getSession().then((res: { data: { session: { access_token: string } | null } }) => {
+      const token = res.data.session?.access_token
+      if (token) supabase.realtime.setAuth(token)
+    })
+
     const channel = supabase.channel(channelName, {
-      config: { presence: { key: userKey } },
+      config: { private: true, presence: { key: userKey } },
     })
 
     channelRef.current = channel

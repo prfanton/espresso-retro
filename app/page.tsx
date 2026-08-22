@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { getUserKey } from '@/lib/utils/userKey'
+import { getAuthUserId } from '@/lib/utils/auth'
 import { FORMATS } from '@/lib/utils/sessionFormats'
 
 export default function HomePage() {
@@ -25,12 +25,13 @@ export default function HomePage() {
     setLoading(true)
     setError('')
     try {
-      const userKey = getUserKey()
+      // Ensure an anonymous auth session exists so the cookie-backed server
+      // route can derive facilitator_id from auth.uid() (not from the body).
+      await getAuthUserId()
       const res = await fetch('/api/sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          facilitator_id: userKey,
           title: title.trim() || 'Team Retrospective',
           format,
         }),

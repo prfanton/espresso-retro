@@ -10,6 +10,14 @@ export async function GET(
   const { sessionId } = await params
   const supabase = await getSupabaseServerClient()
 
+  // Require authentication, then authorize: only the facilitator or a
+  // participant of this session may export its contents (closes the IDOR where
+  // anyone knowing a session UUID could dump every card, name, and vote).
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  }
+
   const [sessionRes, cardsRes, participantsRes] = await Promise.all([
     supabase.from('sessions').select('*').eq('id', sessionId).single(),
     supabase.from('cards').select('*').eq('session_id', sessionId),
@@ -21,6 +29,12 @@ export async function GET(
   }
 
   const session = sessionRes.data as Session
+
+  const isFacilitator = session.facilitator_id === user.id
+  const isParticipant = (participantsRes.data ?? []).some((p) => p.user_key === user.id)
+  if (!isFacilitator && !isParticipant) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
   const cards = (cardsRes.data ?? []) as Card[]
   const participants = participantsRes.data ?? []
 
