@@ -54,7 +54,20 @@ export async function getAuthUserId(captchaToken?: string): Promise<string> {
       )
       if (error || !data.user) {
         inflight = null
-        throw new Error(`Anonymous sign-in failed: ${error?.message ?? 'no user returned'}`)
+        const message = error?.message ?? 'no user returned'
+        // A tokenless request rejected for CAPTCHA means the project enforces a
+        // challenge this build can't answer — almost always a build that shipped
+        // without NEXT_PUBLIC_TURNSTILE_SITE_KEY (the var is inlined at build
+        // time, so adding it in the host needs a redeploy). Say so, instead of
+        // surfacing the opaque "no captcha_token found".
+        if (!captchaToken && /captcha/i.test(message)) {
+          throw new Error(
+            'Anonymous sign-in requires CAPTCHA, but no Turnstile site key is configured in ' +
+              'this build. Set NEXT_PUBLIC_TURNSTILE_SITE_KEY and redeploy (env vars are baked ' +
+              'in at build time).'
+          )
+        }
+        throw new Error(`Anonymous sign-in failed: ${message}`)
       }
       userId = data.user.id
     }
