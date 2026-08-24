@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { getAuthUserId } from '@/lib/utils/auth'
+import { getAuthUserId, captchaEnabled, hasAuthSession } from '@/lib/utils/auth'
 import { FORMATS } from '@/lib/utils/sessionFormats'
+import TurnstileWidget from '@/components/auth/TurnstileWidget'
 
 export default function HomePage() {
   const router = useRouter()
@@ -11,6 +12,12 @@ export default function HomePage() {
   const [format, setFormat] = useState('ssc')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  // Assume a challenge is needed until we confirm a session already exists, so
+  // a first-time visitor can never slip past a configured CAPTCHA.
+  const [needCaptcha, setNeedCaptcha] = useState(captchaEnabled)
+  const [captchaToken, setCaptchaToken] = useState('')
+  // Bumped to remount the widget for a fresh, single-use token after a failure.
+  const [captchaKey, setCaptchaKey] = useState(0)
 
   // Pre-fill the title with a dated default (e.g. "Team retrospective 07/24").
   // Done in an effect so the client-computed date never mismatches SSR output.
@@ -21,7 +28,29 @@ export default function HomePage() {
     setTitle(`Team retrospective ${mm}/${dd}`)
   }, [])
 
+  // Returning visitors already hold an anonymous session, so no challenge is
+  // needed — only the first sign-in per browser consumes a token.
+  useEffect(() => {
+    if (!captchaEnabled) return
+    let cancelled = false
+    hasAuthSession().then((exists) => {
+      if (!cancelled && exists) setNeedCaptcha(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  function resetCaptcha() {
+    setCaptchaToken('')
+    setCaptchaKey((k) => k + 1)
+  }
+
   async function handleCreate() {
+    if (needCaptcha && !captchaToken) {
+      setError('Please complete the verification below.')
+      return
+    }
     setLoading(true)
     setError('')
     try {
@@ -30,8 +59,9 @@ export default function HomePage() {
       // This throws if anonymous sign-ins are disabled on the Supabase project
       // or the Supabase env vars are missing/invalid — the two prerequisites
       // documented in the README. Surfacing the real reason (below) turns an
-      // otherwise silent failure into something diagnosable.
-      await getAuthUserId()
+      // otherwise silent failure into something diagnosable. When CAPTCHA is on,
+      // the Turnstile token gates that first sign-in.
+      await getAuthUserId(needCaptcha ? captchaToken : undefined)
 
       const res = await fetch('/api/sessions', {
         method: 'POST',
@@ -57,6 +87,8 @@ export default function HomePage() {
           ? `Could not create session: ${reason}`
           : 'Could not create session. Please try again.'
       )
+      // The token was consumed by the attempt; issue a fresh one for the retry.
+      if (needCaptcha) resetCaptcha()
       setLoading(false)
     }
   }
@@ -109,11 +141,23 @@ export default function HomePage() {
               </select>
             </div>
 
+            {needCaptcha && (
+              <TurnstileWidget
+                key={captchaKey}
+                onVerify={setCaptchaToken}
+                onError={() => {
+                  setCaptchaToken('')
+                  setError('Verification failed. Please try again.')
+                }}
+                className="flex justify-center"
+              />
+            )}
+
             {error && <p className="text-red-500 text-sm">{error}</p>}
 
             <button
               onClick={handleCreate}
-              disabled={loading}
+              disabled={loading || (needCaptcha && !captchaToken)}
               className="w-full py-3 bg-[#B83C28] hover:bg-[#9c2e1a] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors"
             >
               {loading ? 'Creating…' : 'Create Session'}
