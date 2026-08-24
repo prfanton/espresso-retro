@@ -27,7 +27,12 @@ export default function HomePage() {
     try {
       // Ensure an anonymous auth session exists so the cookie-backed server
       // route can derive facilitator_id from auth.uid() (not from the body).
+      // This throws if anonymous sign-ins are disabled on the Supabase project
+      // or the Supabase env vars are missing/invalid — the two prerequisites
+      // documented in the README. Surfacing the real reason (below) turns an
+      // otherwise silent failure into something diagnosable.
       await getAuthUserId()
+
       const res = await fetch('/api/sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -36,11 +41,22 @@ export default function HomePage() {
           format,
         }),
       })
-      if (!res.ok) throw new Error('Failed to create session')
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error(body?.error || `Session request failed (HTTP ${res.status})`)
+      }
       const session = await res.json()
       router.push(`/retro/${session.id}`)
-    } catch {
-      setError('Could not create session. Please try again.')
+    } catch (err) {
+      // Log the underlying cause so a failing deployment can be diagnosed from
+      // the browser console instead of hitting an opaque generic message.
+      console.error('Session creation failed:', err)
+      const reason = err instanceof Error ? err.message : ''
+      setError(
+        reason
+          ? `Could not create session: ${reason}`
+          : 'Could not create session. Please try again.'
+      )
       setLoading(false)
     }
   }
