@@ -149,6 +149,10 @@ votes, and the facilitator role — not a client-supplied value. **Row Level Sec
 1. Enable **Anonymous sign-ins** — Authentication → Providers → Anonymous.
 2. Apply the migrations in `supabase/migrations/` (`supabase db push`, or paste into the SQL
    editor). These enable RLS; review the column-type notes at the top of `0001_rls.sql` first.
+3. _(Optional, recommended for public deployments)_ **CAPTCHA** on anonymous sign-in —
+   Authentication → Attack Protection → enable **Cloudflare Turnstile**, paste the Turnstile
+   **secret** key, and set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` to the matching **site** key. This
+   throttles automated anonymous-user creation. Leave the env var unset to skip the challenge.
 
 ---
 
@@ -180,6 +184,7 @@ Open [http://localhost:3000](http://localhost:3000).
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous (public) key |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | _(optional)_ Cloudflare Turnstile site key. Set to require a CAPTCHA on anonymous sign-in; must be paired with the Turnstile secret key in Supabase → Attack Protection. |
 
 ---
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { getDisplayName, setDisplayName } from '@/lib/utils/userKey'
-import { getAuthUserId } from '@/lib/utils/auth'
+import { getAuthUserId, captchaEnabled, hasAuthSession } from '@/lib/utils/auth'
 import { getFormat } from '@/lib/utils/sessionFormats'
 import { getPhaseCapabilities, getNextPhase, getPrevPhase, getPhaseDbPatch } from '@/lib/utils/phaseUtils'
 import { useRetroChannel } from '@/lib/channels/useRetroChannel'
@@ -15,6 +15,7 @@ import VotingBoard from './VotingBoard'
 import ResultsView from './ResultsView'
 import WorkflowBreadcrumb, { STEPS, ORDER } from './WorkflowBreadcrumb'
 import JoinModal from '@/components/session/JoinModal'
+import TurnstileWidget from '@/components/auth/TurnstileWidget'
 import InviteLinkButton from '@/components/session/InviteLinkButton'
 import FacilitatorControls, { TimerDisplay } from '@/components/session/FacilitatorControls'
 import PresenceBar from '@/components/presence/PresenceBar'
@@ -67,6 +68,9 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
   const [userKey, setUserKey] = useState<string | null>(null)
   const [displayName, setDisplayNameState] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
+  // A first-time visitor arriving via an invite link must clear CAPTCHA before
+  // we mint their anonymous identity. Returning visitors reuse their session.
+  const [needCaptcha, setNeedCaptcha] = useState(false)
   const [showFinishModal, setShowFinishModal] = useState(false)
   const lastTimerStateRef = useRef<{ totalSeconds: number; running: boolean } | null>(null)
   const confettiFiredRef = useRef(false)
@@ -76,14 +80,14 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
   const isLoaded = useBoardStore((s) => s.isLoaded)
   const participants = usePresenceStore((s) => s.participants)
 
-  useEffect(() => {
-    setSession(initialSession)
-    setMounted(true)
-    // Establish the anonymous auth identity; auth.uid() becomes our userKey.
-    // For a returning user (name already stored), re-assert membership before
-    // revealing the board so the private realtime channel authorizes them.
-    getAuthUserId()
-      .then(async (uid) => {
+  // Establish the anonymous auth identity; auth.uid() becomes our userKey.
+  // For a returning user (name already stored), re-assert membership before
+  // revealing the board so the private realtime channel authorizes them.
+  const establishIdentity = useCallback(
+    async (captchaToken?: string) => {
+      try {
+        const uid = await getAuthUserId(captchaToken)
+        setNeedCaptcha(false)
         const storedName = getDisplayName(initialSession.id)
         if (storedName) {
           await getSupabaseClient()
@@ -95,9 +99,31 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
           setDisplayNameState(storedName)
         }
         setUserKey(uid)
-      })
-      .catch(() => setUserKey(null))
-  }, [initialSession, setSession])
+      } catch {
+        setUserKey(null)
+        // Re-show the challenge so the user can retry with a fresh token.
+        if (captchaEnabled) setNeedCaptcha(true)
+      }
+    },
+    [initialSession.id]
+  )
+
+  useEffect(() => {
+    setSession(initialSession)
+    setMounted(true)
+    let cancelled = false
+    // Only the first sign-in per browser needs a token. If a session already
+    // exists (or CAPTCHA is off), establish identity straight away; otherwise
+    // gate it behind the Turnstile challenge below.
+    hasAuthSession().then((exists) => {
+      if (cancelled) return
+      if (exists || !captchaEnabled) establishIdentity()
+      else setNeedCaptcha(true)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [initialSession, setSession, establishIdentity])
 
   const session = boardSession ?? initialSession
   const format = getFormat(session.format)
@@ -204,6 +230,26 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
 
   function handleExport() {
     window.open(`/api/export/${session.id}`, '_blank')
+  }
+
+  if (mounted && !userKey && needCaptcha) {
+    return (
+      <div className="animated-bg min-h-screen flex items-center justify-center p-4">
+        <div className="bg-white/50 backdrop-blur-md rounded-2xl p-8 w-full max-w-sm shadow-2xl border border-white/50 text-center">
+          <h2 className="text-2xl font-bold text-[#2d1200] mb-2">Quick check</h2>
+          <p className="text-[#2d1200]/60 mb-6 text-sm">
+            Verify you&apos;re human to join this session.
+          </p>
+          <TurnstileWidget
+            onVerify={(token) => {
+              setNeedCaptcha(false)
+              establishIdentity(token)
+            }}
+            className="flex justify-center"
+          />
+        </div>
+      </div>
+    )
   }
 
   if (!mounted || !userKey) {
