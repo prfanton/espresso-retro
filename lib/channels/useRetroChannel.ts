@@ -69,17 +69,11 @@ export function useRetroChannel({ sessionId, userKey, displayName, onPresenceSyn
 
     const supabase = getSupabaseClient()
     const channelName = `retro:${sessionId}`
+    let cancelled = false
 
-    // Ensure the realtime socket carries the current auth JWT so a *private*
-    // channel can authorize this member. Private channels gate broadcast +
-    // presence to authenticated session members (via the realtime.messages RLS
-    // policy), closing the open-internet forgery surface on TIMER_SYNC /
-    // RESULTS_NAVIGATE / CARD_TYPING.
-    supabase.auth.getSession().then((res: { data: { session: { access_token: string } | null } }) => {
-      const token = res.data.session?.access_token
-      if (token) supabase.realtime.setAuth(token)
-    })
-
+    // Private channels gate broadcast + presence to authenticated session
+    // members via the realtime.messages RLS policy, closing the open-internet
+    // forgery surface on TIMER_SYNC / RESULTS_NAVIGATE / CARD_TYPING.
     const channel = supabase.channel(channelName, {
       config: { private: true, presence: { key: userKey } },
     })
@@ -192,21 +186,32 @@ export function useRetroChannel({ sessionId, userKey, displayName, onPresenceSyn
       setResultsNavigatedId(itemId)
     })
 
-    // Subscribe
-    channel.subscribe(async (status: string) => {
-      if (status === 'SUBSCRIBED') {
-        await channel.track({
-          user_key: userKey,
-          display_name: displayName,
-          online_at: new Date().toISOString(),
-          ready: readyRef.current,
-        })
-        // Catch-up fetch for any missed events
-        await fetchInitialData()
-      }
+    // Attach the current auth JWT to the realtime socket BEFORE subscribing.
+    // subscribe() is what triggers the private-channel authorization; if it runs
+    // before setAuth resolves, the join is evaluated as `anon`, the
+    // realtime.messages RLS policy denies it, and the channel never reaches
+    // SUBSCRIBED (so fetchInitialData never runs and the board hangs).
+    supabase.auth.getSession().then(async (res: { data: { session: { access_token: string } | null } }) => {
+      const token = res.data.session?.access_token
+      if (token) await supabase.realtime.setAuth(token)
+      if (cancelled) return
+
+      channel.subscribe(async (status: string) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({
+            user_key: userKey,
+            display_name: displayName,
+            online_at: new Date().toISOString(),
+            ready: readyRef.current,
+          })
+          // Catch-up fetch for any missed events
+          await fetchInitialData()
+        }
+      })
     })
 
     return () => {
+      cancelled = true
       Object.values(typingTimeouts.current).forEach(clearTimeout)
       typingTimeouts.current = {}
       channel.unsubscribe()
