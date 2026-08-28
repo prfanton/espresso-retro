@@ -307,13 +307,13 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
                     className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
                       myReady
                         ? 'bg-green-600 text-white shadow-sm shadow-green-600/30'
-                        : 'text-white bg-[#B83C28] hover:bg-[#9c2e1a] shadow-sm shadow-[#B83C28]/30'
+                        : 'text-[#B83C28] bg-transparent border border-[#B83C28] hover:bg-[#B83C28]/10'
                     }`}
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                     </svg>
-                    {myReady ? 'Done' : "I'm done!"}
+                    {myReady ? 'Done writing' : "I'm done!"}
                   </button>
                 </>
               )}
