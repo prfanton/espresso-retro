@@ -27,6 +27,15 @@
   white-space: pre;
 }
 
+@keyframes arrowNudge {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(3px); }
+}
+
+.arrow-nudge {
+  animation: arrowNudge 1.2s ease-in-out infinite;
+}
+
 @keyframes gradientShift {
   0%   { background-position: 0% 50%; }
   50%  { background-position: 100% 50%; }
