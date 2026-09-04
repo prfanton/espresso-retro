@@ -112,7 +112,7 @@ export default function FacilitatorControls({ onTimerSync, onTimerStateChange, o
   if (!session) return null
 
   return (
-    <div className="flex items-center gap-2 bg-white/40 backdrop-blur-sm border border-[#2d1200]/20 rounded-xl px-3 py-1.5">
+    <div className="flex items-center gap-0.5 sm:gap-2 bg-white/40 backdrop-blur-sm border border-[#2d1200]/20 rounded-xl px-2 sm:px-3 py-1.5">
       <button
         onClick={() => adjustMinutes(-1)}
         className="w-8 h-8 flex items-center justify-center text-[#2d1200]/60 hover:text-[#2d1200] hover:bg-[#2d1200]/10 font-bold text-lg rounded-lg transition-colors"
