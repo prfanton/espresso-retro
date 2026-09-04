@@ -266,20 +266,20 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
 
       {/* Header */}
       <header className="px-4 py-3">
-        <div className="max-w-[1200px] mx-auto flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="max-w-[1200px] mx-auto flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 sm:flex-1">
             <a href="/" className="shrink-0 hover:opacity-80 transition-opacity">
               <img
                 src="/logo-espresso-retro-horizontal.png"
                 alt="Espresso Retro"
-                className="h-12 sm:h-20 w-auto"
+                className="h-10 sm:h-20 w-auto"
               />
             </a>
             <span className="text-[#2d1200]/30">/</span>
             <h1 className="text-[#2d1200] font-semibold truncate text-sm sm:text-base">{session.title}</h1>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-between sm:justify-end">
             <PresenceBar showReady={phase === 'writing'} />
             {isFacilitator
               ? <FacilitatorControls onTimerSync={handleTimerSync} onTimerStateChange={handleTimerStateChange} onTimerEnd={handleTimerEnd} />
