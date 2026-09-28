@@ -25,6 +25,7 @@ export default function RetroCard({
 }: RetroCardProps) {
   const supabase = getSupabaseClient()
   const applyCardDelete = useBoardStore((s) => s.applyCardDelete)
+  const applyCardUpsert = useBoardStore((s) => s.applyCardUpsert)
   const applyVoteInsert = useBoardStore((s) => s.applyVoteInsert)
   const applyVoteDelete = useBoardStore((s) => s.applyVoteDelete)
   const typingCards = usePresenceStore((s) => s.typingCards)
@@ -40,6 +41,8 @@ export default function RetroCard({
   const typingUser = typingCards[card.id]
   const isOtherTyping = typingUser && typingUser.user_key !== userKey
   const authorName = participants[card.author_key] ?? 'Unknown'
+  const canDelete = isAuthor && !isLocked
+  const showFooter = isRevealed || isOtherTyping || canDelete
 
   async function handleSave() {
     if (saving) return
@@ -59,7 +62,10 @@ export default function RetroCard({
 
   async function handleDelete() {
     applyCardDelete(card.id)
-    await supabase.from('cards').delete().eq('id', card.id)
+    // RLS (cards_delete: author_key = auth.uid()) filters rather than errors,
+    // so a rejected delete affects zero rows — restore the card in that case.
+    const { data, error } = await supabase.from('cards').delete().eq('id', card.id).select('id')
+    if (error || !data?.length) applyCardUpsert(card)
   }
 
   async function handleVote() {
@@ -107,8 +113,8 @@ export default function RetroCard({
         )}
       </div>
 
-      {/* Footer — hidden during writing phase */}
-      {isRevealed && <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#2d1200]/10">
+      {/* Footer — author/votes only after reveal; typing + delete also while writing */}
+      {showFooter && <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#2d1200]/10">
         <div className="flex items-center gap-1.5">
           {isRevealed && (
             <>
@@ -139,12 +145,16 @@ export default function RetroCard({
             </button>
           )}
 
-          {isAuthor && !isLocked && (
+          {canDelete && (
             <button
               onClick={handleDelete}
-              className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-[#2d1200]/65 hover:text-red-500 hover:bg-red-50 transition-all"
+              // Hover-reveal on desktop; always visible on small/touch screens
+              // (hover never fires there) and when focused via keyboard.
+              className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 max-sm:opacity-100 pointer-coarse:opacity-100 p-1 rounded-md text-[#2d1200]/65 hover:text-red-500 hover:bg-red-50 transition-all"
+              title="Delete card"
+              aria-label="Delete card"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
