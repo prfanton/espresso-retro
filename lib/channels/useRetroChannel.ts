@@ -27,9 +27,9 @@ export function useRetroChannel({ sessionId, userKey, displayName, onPresenceSyn
   const {
     setSession, setCards, setVotes, setGroups, setReactions, setLoaded,
     applyCardUpsert, applyCardDelete,
-    applyVoteInsert, applyVoteDelete,
+    applyVoteInsert, applyVoteDeleteById,
     applyGroupUpsert, applyGroupDelete,
-    applyReactionInsert, applyReactionDelete,
+    applyReactionInsert, applyReactionDeleteById,
   } = useBoardStore.getState()
   const { setParticipants, setTyping, clearTyping } = usePresenceStore.getState()
 
@@ -80,6 +80,15 @@ export function useRetroChannel({ sessionId, userKey, displayName, onPresenceSyn
 
     channelRef.current = channel
 
+    // DELETE events: RLS isn't applied to deletes, so with RLS on Realtime
+    // sends only the primary key in `old` (even with REPLICA IDENTITY FULL).
+    // There's no session_id to filter or match on, so DELETE subscriptions are
+    // unfiltered and removals are applied by id; ids this board doesn't hold
+    // (other sessions' rows) are ignored by the store.
+    const deletedId = (payload: AnyPayload) => (payload.old as { id?: string } | null)?.id
+    // votes/reactions have no session_id column: scope inserts to this board's cards.
+    const isOwnCard = (cardId: string) => cardId in useBoardStore.getState().cards
+
     // Postgres Changes: cards
     channel.on(
       'postgres_changes',
@@ -93,20 +102,29 @@ export function useRetroChannel({ sessionId, userKey, displayName, onPresenceSyn
     )
     channel.on(
       'postgres_changes',
-      { event: 'DELETE', schema: 'public', table: 'cards', filter: `session_id=eq.${sessionId}` },
-      (payload: AnyPayload) => applyCardDelete((payload.old as { id: string }).id)
+      { event: 'DELETE', schema: 'public', table: 'cards' },
+      (payload: AnyPayload) => {
+        const id = deletedId(payload)
+        if (id) applyCardDelete(id)
+      }
     )
 
     // Postgres Changes: votes
     channel.on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'votes' },
-      (payload: AnyPayload) => applyVoteInsert(payload.new as Vote)
+      (payload: AnyPayload) => {
+        const vote = payload.new as Vote
+        if (isOwnCard(vote.card_id)) applyVoteInsert(vote)
+      }
     )
     channel.on(
       'postgres_changes',
       { event: 'DELETE', schema: 'public', table: 'votes' },
-      (payload: AnyPayload) => applyVoteDelete(payload.old as { card_id: string; user_key: string })
+      (payload: AnyPayload) => {
+        const id = deletedId(payload)
+        if (id) applyVoteDeleteById(id)
+      }
     )
 
     // Postgres Changes: groups
@@ -122,20 +140,29 @@ export function useRetroChannel({ sessionId, userKey, displayName, onPresenceSyn
     )
     channel.on(
       'postgres_changes',
-      { event: 'DELETE', schema: 'public', table: 'groups', filter: `session_id=eq.${sessionId}` },
-      (payload: AnyPayload) => applyGroupDelete((payload.old as { id: string }).id)
+      { event: 'DELETE', schema: 'public', table: 'groups' },
+      (payload: AnyPayload) => {
+        const id = deletedId(payload)
+        if (id) applyGroupDelete(id)
+      }
     )
 
     // Postgres Changes: reactions
     channel.on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'reactions' },
-      (payload: AnyPayload) => applyReactionInsert(payload.new as Reaction)
+      (payload: AnyPayload) => {
+        const reaction = payload.new as Reaction
+        if (isOwnCard(reaction.card_id)) applyReactionInsert(reaction)
+      }
     )
     channel.on(
       'postgres_changes',
       { event: 'DELETE', schema: 'public', table: 'reactions' },
-      (payload: AnyPayload) => applyReactionDelete(payload.old as { card_id: string; user_key: string; emoji: string })
+      (payload: AnyPayload) => {
+        const id = deletedId(payload)
+        if (id) applyReactionDeleteById(id)
+      }
     )
 
     // Postgres Changes: sessions

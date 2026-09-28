@@ -20,10 +20,98 @@ import InviteLinkButton from '@/components/session/InviteLinkButton'
 import FacilitatorControls, { TimerDisplay } from '@/components/session/FacilitatorControls'
 import PresenceBar from '@/components/presence/PresenceBar'
 import { fireConfetti } from '@/components/effects/ConfettiBurst'
+import SessionNotFound from '@/app/retro/[sessionId]/not-found'
 import type { Session } from '@/types/retro'
 
 interface RetroBoardProps {
-  session: Session
+  sessionId: string
+  /** Null when the server couldn't read it (e.g. a first visit with no auth cookie yet). */
+  session: Session | null
+}
+
+// ─── Loading / CAPTCHA screens ────────────────────────────────────────────────
+
+function LoadingScreen() {
+  return (
+    <div className="animated-bg min-h-screen flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-[#B83C28] border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
+}
+
+function CaptchaScreen({ onVerify }: { onVerify: (token: string) => void }) {
+  return (
+    <div className="animated-bg min-h-screen flex items-center justify-center p-4">
+      <div className="bg-white/50 backdrop-blur-md rounded-2xl p-8 w-full max-w-sm shadow-2xl border border-white/50 text-center">
+        <h2 className="text-2xl font-bold text-[#2d1200] mb-2">Quick check</h2>
+        <p className="text-[#2d1200]/60 mb-6 text-sm">
+          Verify you&apos;re human to join this session.
+        </p>
+        <TurnstileWidget onVerify={onVerify} className="flex justify-center" />
+      </div>
+    </div>
+  )
+}
+
+// ─── Session loader ───────────────────────────────────────────────────────────
+
+// sessions_select only allows authenticated users, so a first-time invitee
+// (no auth cookie yet) can't be served the session by the server. Sign in
+// anonymously here first, then read it as that user — no anon access needed.
+function SessionLoader({ sessionId }: { sessionId: string }) {
+  // undefined = still loading, null = doesn't exist (or not readable)
+  const [session, setSession] = useState<Session | null | undefined>(undefined)
+  const [needCaptcha, setNeedCaptcha] = useState(false)
+
+  const load = useCallback(
+    async (captchaToken?: string) => {
+      try {
+        await getAuthUserId(captchaToken)
+        setNeedCaptcha(false)
+        const { data } = await getSupabaseClient()
+          .from('sessions')
+          .select('*')
+          .eq('id', sessionId)
+          .maybeSingle()
+        setSession((data as Session | null) ?? null)
+      } catch {
+        // Re-show the challenge so the user can retry with a fresh token.
+        if (captchaEnabled) setNeedCaptcha(true)
+      }
+    },
+    [sessionId]
+  )
+
+  useEffect(() => {
+    let cancelled = false
+    hasAuthSession().then((exists) => {
+      if (cancelled) return
+      if (exists || !captchaEnabled) load()
+      else setNeedCaptcha(true)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [load])
+
+  if (needCaptcha) {
+    return (
+      <CaptchaScreen
+        onVerify={(token) => {
+          setNeedCaptcha(false)
+          load(token)
+        }}
+      />
+    )
+  }
+  if (session === null) return <SessionNotFound />
+  if (session === undefined) return <LoadingScreen />
+  // Identity is cached by now, so the board won't challenge again.
+  return <RetroBoardView session={session} />
+}
+
+export default function RetroBoard({ sessionId, session }: RetroBoardProps) {
+  return session ? <RetroBoardView session={session} /> : <SessionLoader sessionId={sessionId} />
 }
 
 // ─── Finish modal ─────────────────────────────────────────────────────────────
@@ -64,7 +152,7 @@ function FinishModal({ onExport, onClose }: { onExport: () => void; onClose: () 
 
 // ─── RetroBoard ────────────────────────────────────────────────────────────────
 
-export default function RetroBoard({ session: initialSession }: RetroBoardProps) {
+function RetroBoardView({ session: initialSession }: { session: Session }) {
   const [userKey, setUserKey] = useState<string | null>(null)
   const [displayName, setDisplayNameState] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
@@ -234,31 +322,17 @@ export default function RetroBoard({ session: initialSession }: RetroBoardProps)
 
   if (mounted && !userKey && needCaptcha) {
     return (
-      <div className="animated-bg min-h-screen flex items-center justify-center p-4">
-        <div className="bg-white/50 backdrop-blur-md rounded-2xl p-8 w-full max-w-sm shadow-2xl border border-white/50 text-center">
-          <h2 className="text-2xl font-bold text-[#2d1200] mb-2">Quick check</h2>
-          <p className="text-[#2d1200]/60 mb-6 text-sm">
-            Verify you&apos;re human to join this session.
-          </p>
-          <TurnstileWidget
-            onVerify={(token) => {
-              setNeedCaptcha(false)
-              establishIdentity(token)
-            }}
-            className="flex justify-center"
-          />
-        </div>
-      </div>
+      <CaptchaScreen
+        onVerify={(token) => {
+          setNeedCaptcha(false)
+          establishIdentity(token)
+        }}
+      />
     )
   }
 
-  if (!mounted || !userKey) {
-    return (
-      <div className="animated-bg min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[#B83C28] border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
-  }
+  if (!mounted || !userKey) return <LoadingScreen />
+
 
   return (
     <div className="animated-bg min-h-screen flex flex-col">
