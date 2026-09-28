@@ -24,10 +24,12 @@ interface BoardStore {
   applyCardDelete: (id: string) => void
   applyVoteInsert: (vote: Vote) => void
   applyVoteDelete: (vote: { card_id: string; user_key: string }) => void
+  applyVoteDeleteById: (id: string) => void
   applyGroupUpsert: (group: CardGroup) => void
   applyGroupDelete: (id: string) => void
   applyReactionInsert: (reaction: Reaction) => void
   applyReactionDelete: (reaction: { card_id: string; user_key: string; emoji: string }) => void
+  applyReactionDeleteById: (id: string) => void
 
   addOptimisticCard: (card: Card) => void
   confirmOptimisticCard: (tempId: string, serverCard: Card) => void
@@ -92,18 +94,25 @@ export const useBoardStore = create<BoardStore>((set, get) => ({
     }
   },
 
+  // Realtime DELETE events can't be session-filtered, so ids from other
+  // sessions arrive here too — ignore anything this board doesn't hold.
   applyCardDelete: (id) =>
     set((state) => {
+      if (!(id in state.cards) && !(id in state.votes)) return state
       const { [id]: _, ...rest } = state.cards
       const { [id]: __, ...restVotes } = state.votes
       return { cards: rest, votes: restVotes }
     }),
 
+  // A server row replaces the optimistic one for the same (card, user), so the
+  // store holds the real id that a later realtime DELETE event refers to.
   applyVoteInsert: (vote) =>
     set((state) => {
       const existing = state.votes[vote.card_id] ?? []
-      if (existing.some((v) => v.user_key === vote.user_key)) return state
-      return { votes: { ...state.votes, [vote.card_id]: [...existing, vote] } }
+      const match = existing.find((v) => v.user_key === vote.user_key)
+      if (match?.id === vote.id) return state
+      const next = match ? existing.map((v) => (v === match ? vote : v)) : [...existing, vote]
+      return { votes: { ...state.votes, [vote.card_id]: next } }
     }),
 
   applyVoteDelete: ({ card_id, user_key }) =>
@@ -113,6 +122,15 @@ export const useBoardStore = create<BoardStore>((set, get) => ({
         [card_id]: (state.votes[card_id] ?? []).filter((v) => v.user_key !== user_key),
       },
     })),
+
+  // Realtime DELETE payloads only carry the primary key (RLS is on), so
+  // remote removals are matched by id.
+  applyVoteDeleteById: (id) =>
+    set((state) => {
+      const cardId = Object.keys(state.votes).find((cid) => state.votes[cid].some((v) => v.id === id))
+      if (!cardId) return state
+      return { votes: { ...state.votes, [cardId]: state.votes[cardId].filter((v) => v.id !== id) } }
+    }),
 
   applyGroupUpsert: (group) =>
     set((state) => ({ groups: { ...state.groups, [group.id]: group } })),
@@ -129,8 +147,10 @@ export const useBoardStore = create<BoardStore>((set, get) => ({
   applyReactionInsert: (reaction) =>
     set((state) => {
       const existing = state.reactions[reaction.card_id] ?? []
-      if (existing.some((r) => r.user_key === reaction.user_key && r.emoji === reaction.emoji)) return state
-      return { reactions: { ...state.reactions, [reaction.card_id]: [...existing, reaction] } }
+      const match = existing.find((r) => r.user_key === reaction.user_key && r.emoji === reaction.emoji)
+      if (match?.id === reaction.id) return state
+      const next = match ? existing.map((r) => (r === match ? reaction : r)) : [...existing, reaction]
+      return { reactions: { ...state.reactions, [reaction.card_id]: next } }
     }),
 
   applyReactionDelete: ({ card_id, user_key, emoji }) =>
@@ -143,8 +163,16 @@ export const useBoardStore = create<BoardStore>((set, get) => ({
       },
     })),
 
+  applyReactionDeleteById: (id) =>
+    set((state) => {
+      const cardId = Object.keys(state.reactions).find((cid) => state.reactions[cid].some((r) => r.id === id))
+      if (!cardId) return state
+      return { reactions: { ...state.reactions, [cardId]: state.reactions[cardId].filter((r) => r.id !== id) } }
+    }),
+
   applyGroupDelete: (id) =>
     set((state) => {
+      if (!(id in state.groups) && !Object.values(state.cards).some((c) => c.group_id === id)) return state
       const { [id]: _, ...rest } = state.groups
       // Ungroup cards that belonged to this group
       const updatedCards: Record<string, Card> = {}
